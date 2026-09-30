@@ -41,6 +41,8 @@ function show<T>(label: string, f: Field<T>, extra = '') {
 function print(terms: BillingTerms) {
   console.log(`  document type     ${terms.document_type}`);
   show('amount', terms.amount, terms.amount.currency ? ` ${terms.amount.currency}` : '');
+  show('ACV', terms.acv);
+  show('term (months)', terms.term_length_months);
   show('billing frequency', terms.billing_frequency);
   show('start date', terms.start_date);
   show('NET terms (days)', terms.net_terms_days);
@@ -62,7 +64,7 @@ for (const path of paths) {
   const c = meta.candidates;
   console.log(`\n=== ${path.split('/').pop()}`);
   console.log(
-    `  candidates: ${c.amounts} amounts, ${c.dates} dates, ${c.netTerms} NET phrases, ${c.jurisdictions} locations, ${c.lines} lines`,
+    `  candidates: ${c.amounts} amounts, ${c.dates} dates, ${c.netTerms} NET phrases, ${c.jurisdictions} locations, ${c.durations} durations, ${c.lines} lines`,
   );
   if (values.json) console.log(JSON.stringify(terms, null, 2));
   else print(terms);

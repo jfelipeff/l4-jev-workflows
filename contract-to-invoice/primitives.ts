@@ -9,6 +9,7 @@
 //   start_date        Choice over the dates found
 //   net_terms         Choice over the payment-term phrases found
 //   tax_jurisdiction  Choice over the locations found
+//   term_length       Choice over the durations found (initial term); ACV = total * 12 / months, in code
 //   line_item::<i>    one Noul per candidate line: is this a billable line item?
 
 import {
@@ -17,6 +18,7 @@ import {
   parseAmount,
   parseCurrency,
   parseDate,
+  parseMonths,
   parseNetDays,
   type Candidates,
 } from './regex.js';
@@ -52,6 +54,7 @@ const CANDIDATES_FOR = {
   start_date: 'dates',
   net_terms: 'netTerms',
   tax_jurisdiction: 'jurisdictions',
+  term_length: 'durations',
 } as const;
 
 export function buildQuestions(c: Candidates): Record<string, Question> {
@@ -85,7 +88,7 @@ export function buildQuestions(c: Candidates): Record<string, Question> {
     ),
     recurring_fee: pick(
       {
-        question: 'Which amount is the recurring fee the customer is charged each billing period?',
+        question: 'Which amount is the main recurring fee the customer pays for the subscription or service?',
         not_this: 'a superseded or replaced rate, a one-time fee, or a total over the whole term',
       },
       c.amounts,
@@ -134,6 +137,27 @@ export function buildQuestions(c: Candidates): Record<string, Question> {
       },
       c.jurisdictions,
       "None of these locations is the customer's location.",
+    ),
+    // How long a period the recurring fee amount pays for is read from the wording ("annual fee,
+    // payable quarterly" vs "$1,499 per month"); code does the arithmetic.
+    fee_period: {
+      type: 'choice',
+      instructions: 'The main recurring fee stated in `document` is an amount for how long a period of service?',
+      criteria: {
+        month: 'the amount pays for one month (e.g. "$1,499 per month", "monthly fee of")',
+        quarter: 'the amount pays for three months',
+        half_year: 'the amount pays for six months',
+        year: 'the amount pays for a full year, even if it is invoiced in installments (e.g. "annual fees, payable quarterly")',
+        [NONE]: 'no recurring fee is stated',
+      },
+    },
+    term_length: pick(
+      {
+        question: 'Which phrase in `document` states the length of the initial term of the subscription or service?',
+        not_this: 'a renewal term, a notice period, a payment window, a warranty period, or the term of an earlier agreement',
+      },
+      c.durations,
+      'None of these phrases states the length of the initial term.',
     ),
   };
   // No candidates means nothing to pick from: skip the question, readAnswers reports "not found".
@@ -209,6 +233,8 @@ export type LineItem = { text: string; amount: number | null; p: number; review:
 export type BillingTerms = {
   document_type: string;
   amount: Field<number> & { currency: string | null };
+  acv: Field<number>; // annual contract value, computed in code
+  term_length_months: Field<number>;
   billing_frequency: Field<string>;
   start_date: Field<string>;
   net_terms_days: Field<number>;
@@ -242,8 +268,52 @@ function chooseAmount(answers: Record<string, Answer>): Field<number> {
   return { ...amount, confidence, review: amount.review || confidence < REVIEW_BELOW };
 }
 
+const FEES_PER_YEAR: Record<string, number> = { month: 12, quarter: 4, half_year: 2, year: 1 };
+const cents = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * ACV is arithmetic, so code computes it from what Jev picked: total contract value * 12 / term months,
+ * or else the recurring fee * how many of its periods fit in a year. Confidence is the weakest input used.
+ * An invoice has no ACV.
+ */
+function computeAcv(answers: Record<string, Answer>, term: Field<number>): Field<number> {
+  if ((answers.document_type as ChoiceAnswer).choice === 'invoice') {
+    return { value: null, source: 'not applicable (invoice)', confidence: null, review: false };
+  }
+  const total = field(answers.total_value, parseAmount);
+  const fee = field(answers.recurring_fee, parseAmount);
+  const weakest = (...fs: Field<unknown>[]) => Math.min(...fs.map((f) => f.confidence ?? 1));
+  if (total.value && term.value) {
+    const confidence = weakest(total, term);
+    return {
+      value: cents((total.value * 12) / term.value),
+      source: `${total.source} x 12 / ${term.value} months`,
+      confidence,
+      review: confidence < REVIEW_BELOW,
+    };
+  }
+  const period = field(answers.fee_period, (choice) => choice);
+  const perYear = period.value ? FEES_PER_YEAR[period.value] : undefined;
+  if (fee.value && perYear) {
+    const confidence = weakest(fee, period);
+    return {
+      value: cents(fee.value * perYear),
+      source: `${fee.source} per ${period.value} x ${perYear}`,
+      confidence,
+      review: confidence < REVIEW_BELOW,
+    };
+  }
+  return { value: null, source: null, confidence: null, review: true };
+}
+
 export function readAnswers(answers: Record<string, Answer>, candidates: Candidates): BillingTerms {
   const amount = chooseAmount(answers);
+  const billingFrequency = field(answers.billing_frequency, (choice) => choice);
+  const isInvoice = (answers.document_type as ChoiceAnswer).choice === 'invoice';
+  // An invoice has no contract term: missing is expected, not something to review.
+  const termLength = isInvoice
+    ? { value: null, source: 'not applicable (invoice)', confidence: null, review: false }
+    : field(answers.term_length, parseMonths);
   const lineItems = candidates.lines
     .map((text, i) => {
       const p = (answers[`line_item::${i}`] as NoulAnswer).noul;
@@ -260,7 +330,9 @@ export function readAnswers(answers: Record<string, Answer>, candidates: Candida
   return {
     document_type: (answers.document_type as ChoiceAnswer).choice,
     amount: { ...amount, currency: amount.source ? parseCurrency(amount.source) : null },
-    billing_frequency: field(answers.billing_frequency, (choice) => choice),
+    acv: computeAcv(answers, termLength),
+    term_length_months: termLength,
+    billing_frequency: billingFrequency,
     start_date: field(answers.start_date, parseDate),
     net_terms_days: field(answers.net_terms, parseNetDays),
     tax_jurisdiction: field(answers.tax_jurisdiction, (span) => span),
@@ -291,7 +363,9 @@ export async function extractBillingTerms(document: string): Promise<Extraction>
   const jev = await askJev(document, candidates);
   const terms = readAnswers(jev.answers, candidates);
 
-  const needsReview = (['amount', 'billing_frequency', 'start_date', 'net_terms_days', 'tax_jurisdiction'] as const).filter(
+  const needsReview = (
+    ['amount', 'acv', 'term_length_months', 'billing_frequency', 'start_date', 'net_terms_days', 'tax_jurisdiction'] as const
+  ).filter(
     (key) => terms[key].review,
   ) as string[];
   if (terms.line_items.some((item) => item.review)) needsReview.push('line_items');

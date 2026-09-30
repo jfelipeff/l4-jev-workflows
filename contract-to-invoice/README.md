@@ -7,7 +7,8 @@ frequency, start date, NET terms, line items, and tax jurisdiction"* with Jev. N
    priced line in the document.
 2. **Pick** (`primitives.ts`): one request to the TypeSafe API asks, per field, which candidate is
    the answer (a `Choice` with a `none` option), plus one yes/no (`Noul`) per line: "is this a
-   billable line item?". The amount uses speculative fan-out: the document type and three amount
+   billable line item?". ACV is computed in code from the picks (total value × 12 / term months, or
+   the recurring fee × the number of its periods in a year). The amount uses speculative fan-out: the document type and three amount
    questions go in the same request, and code keeps the one that applies.
 3. **Copy**: the picked span is copied verbatim and normalized in code (numbers, ISO dates, NET
    days). A field whose answer is `none` or whose confidence is below 0.6 is listed in
@@ -56,7 +57,9 @@ Response (`200`):
     "name": "contract.pdf",
     "terms": {
       "document_type": "contract",
-      "amount": { "value": 28481, "currency": "USD", "source": "$28,481", "confidence": 1, "review": false },
+      "amount": { "value": 216000, "currency": "USD", "source": "$216,000.00", "confidence": 1, "review": false },
+      "acv": { "value": 72000, "source": "$216,000.00 x 12 / 36 months", "confidence": 1, "review": false },
+      "term_length_months": { "value": 36, "source": "thirty-six (36) months", "confidence": 1, "review": false },
       "billing_frequency": { "value": "monthly", "source": "monthly", "confidence": 1, "review": false },
       "start_date": { "value": "2026-06-26", "source": "June 26, 2026", "confidence": 1, "review": false },
       "net_terms_days": { "value": null, "source": null, "confidence": null, "review": true },

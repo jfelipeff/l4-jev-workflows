@@ -6,6 +6,7 @@ export type Candidates = {
   amounts: string[]; // "$28,481", "USD [****]" (redacted), "12,907.25 USD"
   dates: string[]; // "June 26, 2026", "11 February 2021", "10/09/12"
   netTerms: string[]; // "within thirty (30) days of the date of the invoice", "Net 30"
+  durations: string[]; // "thirty-six (36) months", "Five (5) Years", "19-month" (term-length candidates)
   jurisdictions: string[]; // "Orange, CA 92867", "laws of England and Wales", "Quebec"
   lines: string[]; // document lines that mention a price or a fee (line-item candidates)
 };
@@ -45,6 +46,13 @@ const NET = new RegExp(
     String.raw`\bdue\s+(?:up)?on\s+receipt\b`,
     String.raw`\b(?:settled|payable|due)\s+immediately(?:\s+[^\s.;|]+){0,6}`,
   ].join('|'),
+  'gi',
+);
+
+// Durations, for the contract term. Payment windows ("30 days") are left out on purpose.
+const DURATION = new RegExp(
+  String.raw`\b(?:[a-z]+(?:-[a-z]+)?\s+)?\(?\d{1,3}\)?[\s-]+(?:calendar\s+)?(?:months?|years?)\b|` +
+    String.raw`\b(?:one|two|three|four|five|six|seven|eight|nine|ten|twelve|eighteen|twenty-four|thirty-six|forty-eight|sixty)[\s-]+(?:months?|years?)\b`,
   'gi',
 );
 
@@ -101,6 +109,7 @@ export function findCandidates(document: string): Candidates {
     amounts: find(MONEY, document),
     dates: find(DATE, document),
     netTerms: find(NET, document),
+    durations: find(DURATION, document),
     jurisdictions: find(JURISDICTION, document),
     lines: findLines(document),
   };
@@ -148,6 +157,20 @@ export function parseDate(span: string): string | null {
   const date = new Date(Date.UTC(y, m - 1, d));
   if (date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null; // e.g. February 30
   return date.toISOString().slice(0, 10);
+}
+
+const WORD_NUMBERS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  twelve: 12, eighteen: 18, 'twenty-four': 24, 'thirty-six': 36, 'forty-eight': 48, sixty: 60,
+};
+
+/** "thirty-six (36) months" -> 36 · "Five (5) Years" -> 60 · "three years" -> 36. */
+export function parseMonths(span: string): number | null {
+  const digits = span.match(/\d{1,3}/);
+  const word = span.toLowerCase().match(/[a-z]+(?:-[a-z]+)?(?=[\s-]+(?:calendar\s+)?(?:months?|years?))/)?.[0];
+  const n = digits ? Number(digits[0]) : word ? WORD_NUMBERS[word] : undefined;
+  if (!n) return null;
+  return /year/i.test(span) ? n * 12 : n;
 }
 
 /** "within thirty (30) days ..." -> 30 · "due on receipt" / "settled immediately" -> 0. */
