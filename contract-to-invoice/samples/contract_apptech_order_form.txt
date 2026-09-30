@@ -1,0 +1,62 @@
+SUBSCRIPTION LICENCE ORDER FORM
+This Order Form is subject to the terms
+of that certain Amended and Restated Subscription License and Services Agreement between NEC PAYMENTS B.S.C. (CLOSED ) (“ NECP ”)
+and APPTECH CORP. (“ Licensee ”) dated as of 11 February 2021 with an effective date of 18 December 2020
+(the “ Agreement ”). All terms used but not otherwise defined herein shall have the meaning ascribed to such terms
+in the Agreement.
+...
+Subscription Term and Subscription Fees |
+Initial Subscription Term:
+The Initial Subscription Term shall
+commence ten (10) days from the date of Funding and shall endure for a period of Five (5) Years thereafter.
+Subscription Fees:
+| A. | License Subscription Fee: One-time fee of USD [****]
+( [*****] United States Dollars) for licenses relating to the use of the Subscription Software during the Initial Subscription
+Term inclusive of up to thirty (30) man days of engineering and implementation resources for Customisations. |
+| B. | Annual Maintenance Subscription Fees: Annual fee of USD [*****]
+( [****] United States Dollars) relating to the maintenance and support of the Subscription Software during each twelve (12)
+month period of the Subscription Term inclusive of ES and CIS. |
+| C. | Subscription Services Fees: |
+| 1) | Project Management and Implementation Fees: One-time fee of
+USD [*****] ( [*****] United States Dollars) for professional services relating to the deployment and configuration
+of the Subscription Software. |
+| 2) | Infrastructure Implementation Fees: One-time fee of USD [*****]
+( [****] United States Dollars) for professional services relating to the set-up of the application hosting environment. |
+| 3) | Training Fees: One-time fee of USD [****] ( [****]
+United States Dollars) for professional services relating to the training of Authorised Users in the Subscription Software inclusive
+of up to 30 man days of training time during the Initial Subscription Term . |
+| 4) | Infrastructure Support Fees: Monthly fee of USD [****]
+( [****] United States Dollars) for professional services relating to the on-going support and maintenance of the application
+hosting environment inclusive of up to 10 man days per month of ES and CIS. |
+| 5) | Infrastructure Hosting Fees: Set-up and recurring fees from
+NECP’s Hosting Partner relating to the utilisation of cloud computing services in the application hosting environment shall be
+passed on to the Licensee at cost. |
+A&R NECP SLSA Order Form (2021-2)
+| Page 2 of 8 | CONFIDENTIAL |
+Subscription Fees Increase Cap:
+The percentage increase in Subscription Fees during Renewal
+Terms shall not exceed 5% per annum with such increases to take effect from the start of the first Renewal Term.
+| 3. | Invoice and Payment Terms: |
+The following payment terms shall apply to Subscription
+Fees:
+| A. | License Subscription Fee: Payable 50% within ten (10) days
+of the date of Funding but no later than 5 th March 2021 and 50% on the Subscription Service Ready Date. |
+| B. | Annual Maintenance Subscription Fees: Payable annually in
+advance within ten (10) days of the date of Funding but no later than 5 th March 2021 and each anniversary thereafter
+for the duration of this Agreement. |
+| C. | Subscription Services Fees: |
+| 1) | Project Management and Implementation Fees: Payable 50% within
+ten (10) days of the date of Funding but no later than 5 th March 2021 and 50% on the Subscription Service Ready Date. |
+| 2) | Infrastructure Implementation Fees: Payable 50% within ten
+(10) days of the date of Funding but no later than 5 th March 2021 and 50% on the Subscription Service Ready Date. |
+| 3) | Training Fees: Payable 50% within ten (10) days of the date
+of Funding but no later than 5 th March 2021 and 50% on the Subscription Service Ready Date. |
+| 4) | Infrastructure Support Fees: Payable monthly in arrears commencing
+on the Subscription Service Ready Date. |
+| 5) | Infrastructure Hosting Fees: Payable monthly in advance commencing
+on the date that the services of the Hosting Partner are first utilised. |
+Unless otherwise stated, all invoices
+are due for settlement within thirty (30) days of the date of the invoice except for invoices relating to Infrastructure Hosting
+Fees which are to be settled immediately on the invoice date.
+Unless excluded by applicable law, NECP
+reserves the right to issue invoices electronically.
