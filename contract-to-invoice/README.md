@@ -23,7 +23,7 @@ frequency, start date, NET terms, line items, and tax jurisdiction"* with Jev. N
 
 ## Endpoint
 
-`POST https://<deployment>/api/extract` with `Authorization: Bearer <L4_JEV_TOKEN>` and a JSON
+`POST https://l4-jev-contract-to-invoice.vercel.app/api/extract` with `Authorization: Bearer <L4_JEV_TOKEN>` and a JSON
 body in one of these shapes:
 
 | Body | Where it comes from in Loopfour |
