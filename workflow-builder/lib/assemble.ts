@@ -41,6 +41,7 @@ export type Assembled = {
 };
 
 const COL = 360;
+const MIN_GUESS = 0.2; // runner-up guesses below this are not shown as options
 const ROW = { main: 220, then: 100, else: 360 };
 const TRIGGERS: Record<string, string> = { api_trigger: 'api', schedule_trigger: 'schedule' };
 
@@ -237,7 +238,15 @@ function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answer
       if (value != null && (f.field.valueType === 'number') && !value.startsWith('{{')) value = numeric(value) ?? value;
       if (value != null && value !== '') set(id, f.field.valueType === 'number' && !value.startsWith('{{') ? Number(value) : value, f.field.control);
       else if (f.field.required || isMessageField(f.field.id, f.field.title, def)) {
-        questions.push({ id: `${s.id}.${id}`, stepId: s.id, kind: 'input', prompt: `"${f.field.title}" for ${title}${f.field.description ? ` (${f.field.description})` : ''}`, options: f.alternatives });
+        // Offer Jev's runner-up guesses only when they are real candidates (>= 20%); otherwise just ask.
+        const guesses = (f.alternatives ?? []).filter((o) => o.p >= MIN_GUESS);
+        const app = s.block?.name ?? 'This app';
+        // Skip descriptions that only repeat the title ("QuickBooks company (realm) ID" for "Company (Realm) ID").
+        const bare = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        const repeats = bare(f.field.description ?? '').includes(bare(f.field.title));
+        const hint = f.field.description && !repeats ? ` (${f.field.description})` : '';
+        const what = isMessageField(f.field.id, f.field.title, def) ? `What should the "${f.field.title}" of ${title} say?` : `${app} needs "${f.field.title}" for ${def?.label ?? 'this step'}${hint}, and your description doesn't say it.`;
+        questions.push({ id: `${s.id}.${id}`, stepId: s.id, kind: 'input', prompt: `${what} Type it below, or leave it and fill it in Studio.`, options: guesses.length ? guesses : undefined });
       }
     }
     step = { id: s.id, name: title, type: 'action', action: def?.id ?? `${blockType}.unknown`, config };
