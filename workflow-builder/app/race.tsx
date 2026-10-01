@@ -216,6 +216,9 @@ export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }
           )}
 
           {done && <Answers kind={raceKind} jev={jev.result!} llm={llm.result!} />}
+          {done && raceKind === 'builder' && (
+            <CreateFromRace key={jev.start} result={jev.result!} apiKey={apiKey} jevKey={jevKey} />
+          )}
         </section>
       )}
     </>
@@ -301,6 +304,58 @@ function Answers({ kind, jev, llm }: { kind: Kind; jev: Record<string, unknown>;
           ))}
         </ol>
       </div>
+    </div>
+  );
+}
+
+/** After a builder race: create the workflow Jev built in Studio as it is, from what the description gives.
+ *  Nothing is asked; details the description leaves out (or apps not connected yet) are finished in Studio. */
+function CreateFromRace({ result, apiKey, jevKey }: { result: Record<string, unknown>; apiKey: string; jevKey: string }) {
+  const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState<{ url: string; jevSecret: boolean | null } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function create() {
+    setBusy(true);
+    setError(null);
+    try {
+      const a = assemble(result.draft as never, result.connections as never, {});
+      const res = await fetch('/api/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, jevKey, workflow: a.workflow, canvasState: a.canvasState }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `Error ${res.status}`);
+      setCreated(json);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="race-create">
+      <p className="hint">
+        The workflow is created in your Loopfour Studio with the information provided in the prompt. Anything the prompt doesn&apos;t
+        say, or apps you haven&apos;t connected yet, can be filled in there.
+      </p>
+      <button className="primary" disabled={busy || !!created} onClick={create}>
+        {busy ? 'Creating…' : created ? 'Created' : "Create Jev's workflow in Studio"}
+      </button>
+      {created && (
+        <p className="created">
+          Created with the information in your prompt ·{' '}
+          <a href={created.url} target="_blank" rel="noreferrer">
+            See it in Loopfour Studio ↗
+          </a>
+          {created.jevSecret === false && (
+            <span className="hint block">Add a workflow secret named JEV_API_KEY with your Jev key in Studio (your Loopfour key lacks secrets:write).</span>
+          )}
+        </p>
+      )}
+      {error && <p className="error">{error}</p>}
     </div>
   );
 }
