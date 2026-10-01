@@ -23,7 +23,11 @@ body {
 main { max-width: 860px; margin: 0 auto; padding: 40px 16px 64px; }
 header h1 { font-size: 28px; line-height: 1.2; margin: 14px 0 8px; letter-spacing: -0.01em; }
 .sub { color: var(--muted); margin: 0 0 24px; max-width: 680px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .brand { display: flex; gap: 8px; align-items: center; color: var(--muted); font-weight: 600; }
+.repo { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; font-size: 13.5px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; min-width: 0; }
+.repo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo:hover { color: var(--text); border-color: var(--accent); }
 .logo { background: #cfcfcf; color: #111; border-radius: 6px; padding: 2px 6px; font-size: 12px; }
 .jev { color: var(--accent); }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
