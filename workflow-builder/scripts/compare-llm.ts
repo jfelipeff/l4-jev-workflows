@@ -72,9 +72,13 @@ function score(out: { trigger?: { type?: string }; steps?: { type?: string; acti
   const misses: string[] = [];
   if (out?.trigger?.type !== expect.trigger.type) misses.push(`trigger ${out?.trigger?.type} != ${expect.trigger.type}`);
   const steps = out?.steps ?? [];
-  if (steps.length !== expect.steps.length) misses.push(`${steps.length} steps != ${expect.steps.length}`);
-  expect.steps.forEach((e, i) => {
-    const s = steps[i];
+  const wanted = expect.steps ?? expect.stepsInclude ?? [];
+  // Exact cases compare position by position; "include" cases look for each step in order.
+  let from = 0;
+  if (expect.steps && steps.length !== wanted.length) misses.push(`${steps.length} steps != ${wanted.length}`);
+  wanted.forEach((e, i) => {
+    const s = expect.steps ? steps[i] : steps.slice(from).find((x) => x.type === e.type && (!e.action || [e.action].flat().includes(x.action ?? '')));
+    if (!expect.steps && s) from = steps.indexOf(s) + 1;
     if (s?.type !== e.type) misses.push(`step ${i + 1} type ${s?.type} != ${e.type}`);
     if (e.action) {
       const ok = Array.isArray(e.action) ? e.action.includes(s?.action ?? '') : s?.action === e.action;
