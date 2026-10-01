@@ -141,8 +141,8 @@ export function JustPaid() {
         <a href="https://justpaid.ai" target="_blank" rel="noreferrer">
           JustPaid
         </a>{' '}
-        is an AI billing automation platform for B2B companies (invoicing, payment collection, revenue operations) and is already
-        connected to Loopfour Studio: its contract, invoice, credit-memo and payment events start Loopfour workflows. Solutions like
+        automates billing for B2B companies: invoicing, payment collection and revenue operations. It is already connected to
+        Loopfour Studio: its contract, invoice, credit-memo and payment events start Loopfour workflows. Solutions like
         this one could run inside JustPaid as well: extract billing terms from new contracts, classify invoices, payments and
         collection replies, route disputes and flag anomalies, each in well under a second at a fraction of a cent, with the
         uncertain cases sent to a person.
