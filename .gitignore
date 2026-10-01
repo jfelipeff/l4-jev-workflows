@@ -6,3 +6,5 @@ workflow-builder/research/
 workflow-builder/.next/
 workflow-builder/next-env.d.ts
 *.tsbuildinfo
+.vercel
+.env*
