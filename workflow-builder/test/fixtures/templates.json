@@ -1,0 +1,147 @@
+[
+ {
+  "slug": "credit-memo-processing",
+  "name": "Credit memo processing",
+  "description": "Route credit-memo requests through tiered approval, apply against oldest open invoices and post the GL entries."
+ },
+ {
+  "slug": "vendor-spend-analysis",
+  "name": "Vendor spend analysis",
+  "description": "Aggregate AP and card spend by vendor, surface maverick spending and flag contracts expiring within 90 days."
+ },
+ {
+  "slug": "dso-monitor",
+  "name": "DSO monitor",
+  "description": "Pull aging by customer segment from NetSuite weekly and escalate at-risk accounts to the right owners."
+ },
+ {
+  "slug": "deferred-revenue-schedule",
+  "name": "Deferred revenue schedule",
+  "description": "Track prepaid balances across active contracts, release recognized revenue and auto-generate the monthly journal entries."
+ },
+ {
+  "slug": "dunning-automation",
+  "name": "Dunning automation",
+  "description": "Detect past-due Stripe invoices and send a multi-touch reminder sequence via SendGrid."
+ },
+ {
+  "slug": "customer-lifetime-value",
+  "name": "Customer lifetime value",
+  "description": "Compute LTV by customer segment using historical revenue, churn and gross margin; push to Google Sheets quarterly."
+ },
+ {
+  "slug": "intercompany-reconciliation",
+  "name": "Intercompany reconciliation",
+  "description": "Reconcile intercompany balances across NetSuite subsidiaries, flag mismatches and stage elimination entries."
+ },
+ {
+  "slug": "collections-performance",
+  "name": "Collections performance",
+  "description": "Track collector contact rates, promise-to-pay conversion and dollars recovered by rep weekly."
+ },
+ {
+  "slug": "tax-compliance-filing",
+  "name": "Tax compliance prep",
+  "description": "Aggregate taxable transactions across entities each quarter, apply jurisdiction rules and stage filing-ready reports."
+ },
+ {
+  "slug": "payment-method-distribution",
+  "name": "Payment method mix",
+  "description": "Break revenue down by payment method, compute processing cost percentages and publish a monthly treasury summary."
+ },
+ {
+  "slug": "commission-run",
+  "name": "Commission run",
+  "description": "Pull Salesforce attainment, compute rep payouts against the comp plan and push approved payouts to Rippling."
+ },
+ {
+  "slug": "invoice-aging-analysis",
+  "name": "Invoice aging analysis",
+  "description": "Pull open invoices from NetSuite, group by aging bucket and ship a weekly summary to the controller in Slack."
+ },
+ {
+  "slug": "subscription-mrr-tracking",
+  "name": "Subscription MRR tracking",
+  "description": "Pull subscription events from Stripe, classify MRR changes and push the trend to Google Sheets monthly."
+ },
+ {
+  "slug": "expense-accrual",
+  "name": "Expense accrual automation",
+  "description": "Estimate monthly expense accruals from open POs and recurring vendor contracts, post JEs and auto-reverse next period."
+ },
+ {
+  "slug": "revenue-waterfall",
+  "name": "Revenue waterfall",
+  "description": "Group Salesforce contracts by signing quarter, compute the recognized-revenue waterfall and sync to NetSuite."
+ },
+ {
+  "slug": "contract-to-invoice",
+  "name": "Contract-to-invoice",
+  "description": "Detect a signed contract, extract billing terms and create + send the matching invoice automatically."
+ },
+ {
+  "slug": "cash-application",
+  "name": "Cash application",
+  "description": "Match incoming Stripe and lockbox payments to open invoices and post matches to the GL automatically."
+ },
+ {
+  "slug": "duplicate-payment-detection",
+  "name": "Duplicate payment detection",
+  "description": "Scan pending and recently-cleared payments for duplicates by vendor, amount and invoice number; flag for AP review before they settle."
+ },
+ {
+  "slug": "ar-aging-summary",
+  "name": "AR aging summary",
+  "description": "Snapshot all open receivables across entities by aging bucket with drill-down by customer and segment."
+ },
+ {
+  "slug": "mrr-arr-dashboard",
+  "name": "MRR / ARR dashboard",
+  "description": "Compute MRR and ARR each month from active Stripe subscriptions with new/expansion/contraction/churn breakdown."
+ },
+ {
+  "slug": "revenue-recognition",
+  "name": "Revenue recognition",
+  "description": "Pull contract terms from DocuSign, compute monthly recognized revenue and post journal entries to QuickBooks."
+ },
+ {
+  "slug": "billing-exceptions",
+  "name": "Billing exceptions",
+  "description": "Scan Stripe events daily for duplicate charges, pricing mismatches, failed renewals and unexpected plan changes."
+ },
+ {
+  "slug": "cash-flow-forecast",
+  "name": "Cash flow forecast",
+  "description": "Project 13-week cash flow from open AR, scheduled AP, payroll and recurring revenue, and flag low-balance weeks."
+ },
+ {
+  "slug": "three-way-po-match",
+  "name": "Three-way PO match",
+  "description": "Match purchase orders, goods receipts and vendor invoices automatically; route exceptions for approval."
+ },
+ {
+  "slug": "vendor-payment-scheduling",
+  "name": "Vendor payment scheduling",
+  "description": "Pull approved bills from Bill.com, optimize timing to capture early-pay discounts and queue ACH batches in NetSuite."
+ },
+ {
+  "slug": "net-revenue-retention",
+  "name": "Net revenue retention",
+  "description": "Compute monthly NRR by cohort with expansion, contraction and churn \u2014 flag cohorts trending below 100%."
+ },
+ {
+  "slug": "payment-reconciliation",
+  "name": "Payment reconciliation",
+  "description": "Pull bank transactions from Plaid daily, match them against open invoices and bills in QuickBooks and surface discrepancies."
+ },
+ {
+  "slug": "revenue-by-product-line",
+  "name": "Revenue by product line",
+  "description": "Join Salesforce line items with NetSuite recognized revenue and compute monthly margin by product/SKU."
+ },
+ {
+  "slug": "churn-analysis",
+  "name": "Churn analysis",
+  "description": "Decompose monthly churn by reason, contract value tier and segment; separate voluntary from involuntary."
+ }
+]

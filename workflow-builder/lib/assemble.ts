@@ -19,6 +19,7 @@ export type Question = {
   prompt: string;
   options?: Alt[];
   replan?: boolean; // answering needs a new Jev round (different app/action), not just reassembly
+  forceKey?: string; // which Force entry a replan answer sets
 };
 
 export type StepView = {
@@ -72,6 +73,27 @@ export function assemble(draft: Draft, connections: Connection[], answers: Answe
     questions.push({ id: 'cron', stepId: null, kind: 'input', prompt: `Check the schedule (cron, ${timezone}). Jev read: ${cron}` });
   }
   const trigger = triggerType === 'schedule_trigger' ? { type: 'schedule', cron, timezone } : { type: 'api' };
+
+  // The workflow produces results someone should hear about, but no step sends them: ask where.
+  if (draft.notify.implied >= OK && !draft.notify.covered) {
+    questions.push({
+      id: '__notify__',
+      stepId: null,
+      kind: 'choose',
+      prompt: 'This workflow produces results someone should see, but nothing sends them. Send them with:',
+      options: [...draft.notify.options, { id: 'none', label: 'Do not send', p: 0 }],
+      replan: true,
+      forceKey: '__notify__',
+    });
+  }
+  if (draft.template && draft.template.fit >= 0.6) {
+    questions.push({
+      id: 'template_info',
+      stepId: null,
+      kind: 'info',
+      prompt: `Loopfour also has a "${draft.template.name}" template (${draft.template.slug}) for this job; this workflow was built from your description instead.`,
+    });
+  }
 
   // ---------------------------------------------------------------- steps
   const steps: Record<string, unknown>[] = [];
@@ -182,23 +204,25 @@ function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answer
   let canvasType: string = s.kind;
   let confidence: number | null = s.kindConfidence;
 
+  const removeOption = { id: '__remove__', label: 'Remove this step', p: 0 };
   if (s.kind === 'integration') {
-    const blockType = answers[`${s.id}_block`] ?? s.block?.value;
+    const blockType = s.blockType;
     const def = s.action?.def;
     canvasType = blockType ?? 'api';
     title = def ? `${s.block?.name ?? blockType}: ${def.label}` : `${s.block?.name ?? 'Unknown app'}`;
     confidence = Math.min(s.block?.confidence ?? 0, s.action?.confidence ?? 0);
-    if ((s.block?.confidence ?? 0) < OK || lowKind) {
-      questions.push({ id: `${s.id}_block`, stepId: s.id, kind: 'choose', prompt: `Which app should "${s.clause}" use?`, options: s.block?.alternatives, replan: true });
+    if (lowKind) {
+      questions.push({ id: `${s.id}_block`, stepId: s.id, kind: 'choose', prompt: `Should "${s.clause}" use ${s.block?.name}?`, options: [...(s.block?.alternatives ?? []), removeOption], replan: true, forceKey: s.forceKey });
     }
     if (!def || (s.action?.confidence ?? 0) < OK) {
       questions.push({
         id: `${s.id}_action`,
         stepId: s.id,
         kind: 'choose',
-        prompt: def ? `Which ${s.block?.name} action is "${s.clause}"?` : `Jev found no ${s.block?.name ?? ''} action for "${s.clause}". Pick the app again.`,
-        options: def ? s.action?.alternatives : s.block?.alternatives,
+        prompt: def ? `Which ${s.block?.name} action is "${s.clause}"?` : `Jev found no ${s.block?.name ?? ''} action for "${s.clause}". Use another block, or remove it:`,
+        options: def ? s.action?.alternatives : [...(s.block?.alternatives ?? []).filter((a) => a.id !== blockType), removeOption],
         replan: true,
+        forceKey: s.forceKey,
       });
     }
     if (def?.opField) set(def.opField, def.op, 'dropdown');
@@ -217,6 +241,21 @@ function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answer
       }
     }
     step = { id: s.id, name: title, type: 'action', action: def?.id ?? `${blockType}.unknown`, config };
+  } else if (s.kind === 'agent') {
+    // The workflow's own AI step (it runs when the workflow runs; the builder never calls an LLM).
+    title = 'AI Agent';
+    canvasType = 'agent';
+    confidence = s.kindConfidence;
+    const prompt = answers[`${s.id}.prompt`] ?? `Task: ${s.prompt ?? s.clause}\nAnalyze the input data for this task and return your findings.`;
+    set('provider', 'anthropic', 'dropdown');
+    set('model', 'claude-opus-5', 'dropdown');
+    set('prompt', prompt, 'long-input');
+    set('input', answers[`${s.id}.input`] ?? s.fields.input?.value ?? '{{input}}', 'code');
+    detail = `${s.prompt ?? s.clause} · reads ${config.input}`;
+    if (lowKind) {
+      questions.push({ id: `${s.id}_block`, stepId: s.id, kind: 'choose', prompt: `Does "${s.clause}" need an AI step?`, options: [...(s.block?.alternatives ?? []).filter((a) => a.id !== 'agent'), removeOption], replan: true, forceKey: s.forceKey });
+    }
+    step = { id: s.id, name: `AI: ${s.prompt ?? s.clause}`.slice(0, 120), type: 'agent', config };
   } else if (s.kind === 'condition') {
     const c = s.condition!;
     const left = answers[`${s.id}.left`] ?? c.left.value;
@@ -265,7 +304,7 @@ function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answer
     step = { id: s.id, name: `API request: ${s.clause}`.slice(0, 120), type: 'action', action: 'api.request', config };
   }
 
-  if (lowKind && s.kind !== 'integration') {
+  if (lowKind && !['integration', 'agent'].includes(s.kind)) {
     questions.push({ id: `${s.id}_kind`, stepId: s.id, kind: 'info', prompt: `Jev was unsure "${s.clause}" is a ${s.kind} step (${Math.round(s.kindConfidence * 100)}%).` });
   }
   void draft;

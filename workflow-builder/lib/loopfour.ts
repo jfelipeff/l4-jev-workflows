@@ -45,6 +45,16 @@ export async function fetchCatalogRaw(key: string) {
 
 export const fetchConnections = (key: string) => call<Connection[]>(key, 'GET', '/connections');
 
+/** Loopfour's system templates (name + description), used only to mention a matching template. */
+let templateCache: { at: number; list: { slug: string; name: string; description: string }[] } | null = null;
+export async function fetchTemplates(key: string) {
+  if (templateCache && Date.now() - templateCache.at < CATALOG_TTL_MS) return templateCache.list;
+  const rows = await call<{ slug: string | null; name: string; description: string | null }[]>(key, 'GET', '/templates?limit=100').catch(() => []);
+  const list = rows.filter((t) => t.slug).map((t) => ({ slug: t.slug!, name: t.name, description: t.description ?? '' }));
+  templateCache = { at: Date.now(), list };
+  return list;
+}
+
 /** Create the workflow (draft), then save the canvas so it shows up as blocks in Studio. */
 export async function createWorkflow(
   key: string,

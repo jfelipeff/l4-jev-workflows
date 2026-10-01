@@ -81,12 +81,15 @@ export default function Home() {
   }
 
   function answer(q: Question, value: string) {
-    if (q.replan && plan) {
+    if (q.replan && plan && q.forceKey) {
       const step = plan.draft.steps.find((s) => s.id === q.stepId);
-      if (!step) return;
-      const block = step.block?.value ?? undefined;
-      const choice = q.id.endsWith('_action') && step.action?.def ? { block, action: `${block}.${value}` } : { block: value };
-      void build({ ...force, [step.clause]: choice });
+      const entry =
+        value === '__remove__'
+          ? { remove: true }
+          : q.id.endsWith('_action') && step?.action?.def
+            ? { action: `${step.blockType}.${value}` }
+            : { block: value };
+      void build({ ...force, [q.forceKey]: entry });
       return;
     }
     setAnswers((a) => ({ ...a, [q.id]: value }));
@@ -184,7 +187,7 @@ export default function Home() {
               {assembled.view.steps.map((s) => (
                 <li key={s.id} className={`node ${s.branch ?? ''}`}>
                   {s.branch && <span className={`branch ${s.branch}`}>{s.branch === 'then' ? 'if true' : 'otherwise'}</span>}
-                  <span className="kind">{s.kind === 'integration' ? 'Action' : s.kind}</span>
+                  <span className="kind">{s.kind === 'integration' ? 'Action' : s.kind === 'agent' ? 'AI step' : s.kind}</span>
                   <strong>{s.title}</strong>
                   <span className="detail">{s.detail}</span>
                   <Fields config={s.config} />

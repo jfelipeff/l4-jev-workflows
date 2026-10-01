@@ -5,7 +5,7 @@
 import { assemble } from '@/lib/assemble.ts';
 import { buildCatalog } from '@/lib/catalog.ts';
 import { JevKeyError } from '@/lib/jev.ts';
-import { fetchCatalogRaw, fetchConnections, LoopfourError } from '@/lib/loopfour.ts';
+import { fetchCatalogRaw, fetchConnections, fetchTemplates, LoopfourError } from '@/lib/loopfour.ts';
 import { plan, type Force } from '@/lib/planner.ts';
 
 export const maxDuration = 30;
@@ -24,10 +24,10 @@ export async function POST(request: Request) {
 
   try {
     const t1 = performance.now();
-    const [raw, connections] = await Promise.all([fetchCatalogRaw(apiKey), fetchConnections(apiKey)]);
+    const [raw, connections, templates] = await Promise.all([fetchCatalogRaw(apiKey), fetchConnections(apiKey), fetchTemplates(apiKey)]);
     const loopfourMs = performance.now() - t1;
     const catalog = buildCatalog(raw as Parameters<typeof buildCatalog>[0]);
-    const draft = await plan(description.trim(), catalog, { force, jevKey });
+    const draft = await plan(description.trim(), catalog, { force, jevKey, templates });
     const assembled = assemble(draft, connections);
     return Response.json({
       draft,

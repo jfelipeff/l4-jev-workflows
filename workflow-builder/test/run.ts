@@ -15,6 +15,7 @@ import { CASES } from './cases.ts';
 const here = new URL('.', import.meta.url).pathname;
 const catalog = buildCatalog(JSON.parse(readFileSync(`${here}fixtures/catalog.json`, 'utf8')));
 const connections = JSON.parse(readFileSync(`${here}fixtures/connections.json`, 'utf8'));
+const templates = JSON.parse(readFileSync(`${here}fixtures/templates.json`, 'utf8'));
 const cachePath = `${here}fixtures/jev-cache.json`;
 const store: Record<string, JevCall> = existsSync(cachePath) ? JSON.parse(readFileSync(cachePath, 'utf8')) : {};
 const cache: JevCache = { get: (k) => store[k], set: (k, v) => void (store[k] = v) };
@@ -36,7 +37,7 @@ let totalUsd = 0;
 for (const [i, c] of CASES.entries()) {
   if (only && only !== i + 1) continue;
   const t0 = performance.now();
-  const draft = await plan(c.description, catalog, { cache });
+  const draft = await plan(c.description, catalog, { cache, templates });
   const out = assemble(draft, connections);
   const ms = performance.now() - t0;
   totalMs += draft.usage.jevMs;
@@ -44,13 +45,27 @@ for (const [i, c] of CASES.entries()) {
 
   const errors: string[] = [];
   check(out.workflow.trigger, c.expect.trigger, 'trigger', errors);
-  if (out.workflow.steps.length !== c.expect.steps.length) {
-    errors.push(`steps: got ${out.workflow.steps.length} (${out.workflow.steps.map((s) => s.action ?? s.type).join(', ')}), want ${c.expect.steps.length}`);
+  const got = out.workflow.steps;
+  const summary = got.map((s) => s.action ?? s.type).join(', ');
+  if (c.expect.steps) {
+    if (got.length !== c.expect.steps.length) errors.push(`steps: got ${got.length} (${summary}), want ${c.expect.steps.length}`);
+    c.expect.steps.forEach((e, k) => check(got[k], e, `steps[${k}]`, errors));
   }
-  c.expect.steps.forEach((e, k) => check(out.workflow.steps[k], e, `steps[${k}]`, errors));
+  if (c.expect.stepsInclude) {
+    // ordered subsequence: each expected step must appear after the previous match
+    let from = 0;
+    for (const [k, e] of c.expect.stepsInclude.entries()) {
+      const idx = got.findIndex((s, j) => j >= from && (() => { const errs: string[] = []; check(s, e, '', errs); return errs.length === 0; })());
+      if (idx < 0) errors.push(`stepsInclude[${k}] ${JSON.stringify(e)} not found in order (got: ${summary})`);
+      else from = idx + 1;
+    }
+  }
+  for (const id of c.expect.questions ?? []) {
+    if (!out.questions.some((q) => q.id === id)) errors.push(`question ${id} was not asked`);
+  }
   // Every action and config key must exist in the catalog.
   for (const s of out.workflow.steps) {
-    if (s.type !== 'action' || s.action === 'api.request') continue;
+    if (s.type !== 'action' || s.action === 'api.request') continue; // agent/condition/approval/wait are core steps
     const [type] = String(s.action).split('.');
     const def = catalog.byType[type]?.actions.find((a) => a.id === s.action);
     if (!def) errors.push(`${s.id}: action ${s.action} is not in the catalog`);
