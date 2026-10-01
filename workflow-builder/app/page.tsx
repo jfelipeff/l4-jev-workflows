@@ -24,8 +24,8 @@ type Tab = (typeof TABS)[number]['id'];
 // Page sections, in order: the side nav and the numbered labels above each part use the same list.
 const SECTIONS = [
   { id: 'try', label: 'Try it' },
-  { id: 'jev-workflows', label: 'Example workflows' },
   { id: 'why', label: 'Why Jev' },
+  { id: 'jev-workflows', label: 'Example workflows' },
   { id: 'where-else', label: 'Across Loopfour' },
   { id: 'articles', label: 'Reading' },
 ] as const;
@@ -193,6 +193,8 @@ export default function Home() {
         </div>
 
         <SectionLabel n={1} />
+        <WhyJev />
+        <SectionLabel n={2} />
         <JevExamples
           onBuild={(text) => {
             setSeed((x) => ({ text, n: (x?.n ?? 0) + 1 }));
@@ -200,8 +202,6 @@ export default function Home() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
         />
-        <SectionLabel n={2} />
-        <WhyJev />
         <SectionLabel n={3} />
         <WhereElse />
         <SectionLabel n={4} />
