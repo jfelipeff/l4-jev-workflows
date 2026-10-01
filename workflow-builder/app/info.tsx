@@ -1,4 +1,4 @@
-// Static sections: why Jev helps Loopfour Studio, JustPaid, and further reading.
+// Static sections: why Jev helps Loopfour Studio, where else it fits in Loopfour, and further reading.
 
 const ARTICLES = [
   {
@@ -144,20 +144,179 @@ export function WhyJev() {
   );
 }
 
-export function JustPaid() {
+// Every Loopfour use case (https://loopfour.ai/solutions/use-cases) and where a Jev judgment fits in it.
+const L4 = 'https://loopfour.ai/solutions';
+const CASES: Record<string, [slug: string, name: string]> = {
+  deposition: ['legal-billing-deposition-automation', 'Legal billing (depositions)'],
+  everyset: ['entertainment-staffing-payroll-journal-entries', 'Everyset (payroll invoices)'],
+  vendor: ['healthcare-tech-four-way-vendor-reconciliation', 'Healthcare tech (four-way vendor match)'],
+  estate: ['legal-services-estate-planning-revenue-recognition', 'Estate planning (rev rec)'],
+  asc606: ['manufacturing-asc-606-revenue-recognition-epicor', 'Manufacturing (ASC 606 on Epicor)'],
+  credits: ['health-diagnostics-usage-based-revenue-recognition', 'Health diagnostics (usage credits)'],
+  partners: ['accounting-services-rd-tax-partner-billing', 'Accounting services (partner billing)'],
+  rails: ['fintech-multi-rail-payment-reconciliation', 'Fintech ($5.6B, five rails)'],
+  cyber: ['cybersecurity-enterprise-cash-application', 'Cybersecurity (cash application)'],
+  aiinfra: ['ai-infrastructure-contract-to-reconciliation', 'AI infrastructure (contract to reconciliation)'],
+  foodhall: ['food-hall-tenant-billing-bank-reconciliation', 'Food hall (tenant billing)'],
+  msb: ['fintech-money-services-business-contract-to-cash', 'Money services (contract to cash)'],
+  creator: ['creator-economy-billing-payout-automation', 'Creator economy (billing and payouts)'],
+  hra: ['hra-reimbursement-processing-automation', 'HRA reimbursements'],
+  signage: ['digital-signage-media-month-end-billing-automation', 'Digital signage (Salesforce to NetSuite)'],
+  senior: ['senior-living-saas-billing-automation', 'Senior living SaaS (billing)'],
+  lending: ['lending-marketplace-loan-lifecycle-notifications', 'Lending marketplace (loan notifications)'],
+  travel: ['travel-technology-month-end-workbook-automation', 'Travel tech (month-end workbook)'],
+  proptech: ['proptech-lease-to-payment-automation', 'PropTech (lease to payment)'],
+};
+
+function CaseLink({ k }: { k: string }) {
   return (
-    <section className="card prose" id="justpaid">
-      <h2>The same approach fits JustPaid</h2>
+    <a href={`${L4}/use-cases/${CASES[k][0]}`} target="_blank" rel="noreferrer">
+      {CASES[k][1]}
+    </a>
+  );
+}
+
+const AREAS: { title: string; solution?: [string, string]; today: string; jev: string; cases: string[] }[] = [
+  {
+    title: 'Reading contracts and order forms',
+    solution: ['Revenue recognition', 'revenue-recognition-automation'],
+    today:
+      'Signed contracts arrive from DocuSign, SignNow, HelloSign or an API, and "AI parses the terms": amounts, cadence, discounts, minimums, renewal, milestones and splits. Loopfour promises that this AI is "scoped and confidence-gated" and that "every number traces back to a clause".',
+    jev: 'This is exactly what /api/extract does: code finds every candidate value in the contract, Jev picks the one each field asks for, and code copies it verbatim with its source line and a calibrated confidence. Ambiguous terms go to a person instead of being guessed, and a value cannot be invented.',
+    cases: ['aiinfra', 'msb', 'proptech', 'partners', 'estate', 'credits', 'signage'],
+  },
+  {
+    title: 'Cash application and remittance',
+    solution: ['Payment reconciliation', 'payment-reconciliation-automation'],
+    today:
+      'Payments land as lump sums with remittance "in whatever shape they arrive": Wise and bank notifications, partner remittances covering fifty invoices, short-pays with no reason. "Scoped AI parses it into structured data" and a match clears "only above the confidence threshold you choose".',
+    jev: 'Code proposes the candidate invoices (amount, date, customer); Jev reads the memo or remittance and picks among them with a calibrated probability, which is the confidence threshold. One Noul per reason explains a short-pay (withholding tax, FX, deduction, dispute).',
+    cases: ['cyber', 'creator', 'aiinfra', 'foodhall', 'rails', 'msb'],
+  },
+  {
+    title: 'Collections replies and disputes',
+    solution: ['Accounts receivable', 'accounts-receivable-automation'],
+    today:
+      'Collection emails go out on schedule, but the replies still need reading: "manual searches through a shared inbox", disputes with "no paper trail", and "accounts that need escalation and accounts that need patience get treated identically".',
+    jev: 'Classify every reply (promise to pay, payment sent, dispute, remittance advice, wrong contact, out of office), extract the promised date or amount, route it to the right collector, and score urgency so the dunning sequence pauses or escalates on what the customer actually said.',
+    cases: ['cyber', 'lending', 'msb', 'aiinfra'],
+  },
+  {
+    title: 'Categorizing and routing records',
+    solution: ['Month-end close', 'month-end-close-automation'],
+    today:
+      'Invoices route to the union or non-union QuickBooks entity "based on their characteristics", opportunities are "categorized by sales team", pharmacy subsidy lines are stripped for multi-state tax, and expenses split across entities, branches and currencies.',
+    jev: 'One Choice per record or line: the entity, the GL account (hierarchical classification handles large charts of accounts), the team, or the tax treatment, each with a confidence that sends only the unclear lines to review.',
+    cases: ['everyset', 'signage', 'senior', 'travel', 'foodhall', 'hra'],
+  },
+  {
+    title: 'Mapping between systems',
+    today:
+      'Salesforce opportunities "mapped to NetSuite requirements", "HubSpot fields that don\'t map natively", delivery-platform stores matched to tenant contracts, vendor invoice lines matched "at the line-item level" to order forms.',
+    jev: 'Pairing two lists whose names differ is a Choice per item over the other list, the same way the builder maps each part of a description to a block in the catalog. It runs once at setup or on every new item, and the probabilities show which pairs a person should confirm.',
+    cases: ['signage', 'senior', 'foodhall', 'vendor', 'travel'],
+  },
+  {
+    title: 'Long documents, messages and exceptions',
+    today:
+      'Deposition PDFs where only the first and last three pages matter, 120–180-page invoice packages checked seven ways against payroll, an estate value confirmed in a Slack reply, and exceptions that need "the right owner with everything they need attached".',
+    jev: 'Line search finds the few lines that answer each question in a long document, so code can read the numbers and apply rules like "whichever start time is earlier". For exceptions, Jev picks the owner or queue and checks whether a note explains a variance, so reviewers start with the ones that matter.',
+    cases: ['deposition', 'everyset', 'estate', 'rails', 'proptech', 'asc606'],
+  },
+];
+
+const BY_CASE: [string, string][] = [
+  ['deposition', 'Pick the start and end timestamps among those found in the first and last three pages (code applies "whichever is earlier"); low confidence goes to the existing Slack review.'],
+  ['everyset', "Route each invoice package to the union or non-union entity, and locate the gross, tax, workers' comp and fee lines the seven payroll checks need."],
+  ['vendor', 'Pair vendor invoice lines with order-form and pricing-calculator lines when the descriptions differ. The variance math stays rule-based, as the controller wants.'],
+  ['estate', 'Read the confirmed estate value from the Slack reply at month 6 and check it is a confirmation, not an estimate, before the mid-term invoice is drafted.'],
+  ['asc606', "The recognition math stays code; Jev reads the CFO's reply to the review email (approve, reject, needs changes) so posting doesn't wait on a button."],
+  ['credits', 'Read the tier and credit quantity from the signed HelloSign contract, and classify design-review replies as approved or changes requested.'],
+  ['partners', 'Extract milestones, percentages and completion criteria from partner contracts with no standard format (one row per milestone), and classify tax one-off requests for routing.'],
+  ['rails', 'Suggest the client trust account from a deposit memo, flag out-of-pattern deposits, and pick the exception queue with the reason attached.'],
+  ['cyber', 'Classify inbox replies and route them to the collector, map partner remittance lines to customer invoices, spot withholding-tax short-pays, and read portal dispute reasons.'],
+  ['aiinfra', 'Extract amount, cadence, discounts and auto-renewal from DocuSign contracts, and match Airwallex payment references to invoices, one-to-one or one-to-many.'],
+  ['foodhall', 'Read fee terms (percentage, minimum, common area fee, waivers) from 70 tenant contracts, and map delivery-platform store names to tenants.'],
+  ['msb', 'Extract setup fees, platform fees, minimums and renewal from SignNow contracts, tell volume-based from fee-based minimums, and name the client behind an ACH or wire description.'],
+  ['creator', 'Parse each Wise notification (amount and brand) and pick the deal it pays among the open ones in Airtable.'],
+  ['hra', "Check each employee spending line against the plan's eligible categories before the statement and ACH are built, sending unclear lines to review."],
+  ['signage', 'Read contract PDFs into Salesforce fields instead of reps transcribing them, categorize opportunities by sales team, and map fields to NetSuite.'],
+  ['senior', 'Flag pharmacy subsidy line items for the tax rules, map HubSpot custom fields to NetSuite, and recognize module-addition requests that need an addendum.'],
+  ['lending', 'Classify borrower replies (paid, will pay on a date, dispute, hardship) to cancel or escalate the Day 1, 5 and 14 reminders, and read counter-proposal terms.'],
+  ['travel', 'Classify Expensify lines by entity and GL account, and map Salesforce products to NetSuite items for billing and the rev rec schedule.'],
+  ['proptech', 'Extract rent, deposit, pet and parking fees, start date and term from the lease with ambiguous terms flagged (what /api/extract already does), and read maintenance invoices for approval.'],
+];
+
+export function WhereElse() {
+  return (
+    <section className="card prose" id="where-else">
+      <h2>Other parts of Loopfour where Jev works great</h2>
       <p>
-        <a href="https://justpaid.ai" target="_blank" rel="noreferrer">
-          JustPaid
+        Loopfour&apos;s rule is deterministic workflows with AI only where it helps, &quot;scoped and confidence-gated&quot;. Jev is
+        that kind of AI: it answers a typed question with a calibrated probability and never writes free text. Going through all{' '}
+        <a href={`${L4}/use-cases`} target="_blank" rel="noreferrer">
+          19 case studies
         </a>{' '}
-        automates billing for B2B companies: invoicing, payment collection and revenue operations. It is already connected to
-        Loopfour Studio: its contract, invoice, credit-memo and payment events start Loopfour workflows. Solutions like
-        this one could run inside JustPaid as well: extract billing terms from new contracts, classify invoices, payments and
-        collection replies, route disputes and flag anomalies, each in well under a second at a fraction of a cent, with the
-        uncertain cases sent to a person.
+        and the four solution pages, the same few judgments keep coming back:
       </p>
+      <div className="grid2">
+        {AREAS.map((a) => (
+          <div key={a.title} className="tile">
+            <strong>{a.title}</strong>
+            {a.solution && (
+              <a className="tag" href={`${L4}/${a.solution[1]}`} target="_blank" rel="noreferrer">
+                {a.solution[0]}
+              </a>
+            )}
+            <p>
+              <em>Today:</em> {a.today}
+            </p>
+            <p>
+              <em>With Jev:</em> {a.jev}
+            </p>
+            <p className="cases">
+              {a.cases.map((k, i) => (
+                <span key={k}>
+                  {i > 0 && ' · '}
+                  <CaseLink k={k} />
+                </span>
+              ))}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <h3>What stays code</h3>
+      <p>
+        Rent and split calculations, ASC 606 schedules, four-way-match math, dunning schedules, ACH and postings stay deterministic
+        rules, as they are today. Jev only answers the questions those rules need from text (which value, which invoice, which
+        entity, which owner), and each answer is logged with its probability like any other step, so the audit trail Loopfour sells
+        on stays intact.
+      </p>
+
+      <details>
+        <summary>Case by case: all 19 Loopfour case studies</summary>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Case study</th>
+                <th>Where Jev fits</th>
+              </tr>
+            </thead>
+            <tbody>
+              {BY_CASE.map(([k, text]) => (
+                <tr key={k}>
+                  <td>
+                    <CaseLink k={k} />
+                  </td>
+                  <td>{text}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </section>
   );
 }

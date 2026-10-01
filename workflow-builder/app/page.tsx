@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Builder } from './builder.tsx';
 import { ClassifyPanel, ExtractPanel } from './functions.tsx';
-import { Articles, JustPaid, WhyJev } from './info.tsx';
+import { Articles, WhereElse, WhyJev } from './info.tsx';
 import { TemplatesPanel } from './templates.tsx';
 import { GitHubIcon } from './ui.tsx';
 
@@ -102,7 +102,7 @@ export default function Home() {
       </div>
 
       <WhyJev />
-      <JustPaid />
+      <WhereElse />
       <Articles />
 
       <footer>
