@@ -126,6 +126,10 @@ code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
 .prose ul { padding-left: 18px; margin: 0 0 12px; }
 .prose li { margin-bottom: 6px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin: 16px 0 4px; }
+.figures figure { margin: 0; }
+.figures img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+.figures figcaption { margin-top: 6px; font-size: 13px; color: var(--muted); }
 .tile { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 .tile p { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }

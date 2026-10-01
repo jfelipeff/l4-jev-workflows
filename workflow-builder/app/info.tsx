@@ -38,6 +38,17 @@ export function WhyJev() {
         questions, with calibrated probabilities, in milliseconds, without generating text.
       </p>
 
+      <div className="figures">
+        <figure>
+          <img src="/jev-picks.png" width={2000} height={1125} alt="Code finds the candidate values in the document, Jev picks the right one with a confidence, code copies it into the result" />
+          <figcaption>Extraction and classification: code finds the candidates, Jev picks one with a confidence, code assembles the result.</figcaption>
+        </figure>
+        <figure>
+          <img src="/jev-builder.png" width={2000} height={1125} alt="The description is cut into parts and Jev files each one under a real block from the live catalog, then the workflow is created in Loopfour Studio" />
+          <figcaption>Workflow builder: each part of the description is filed under a real block from your live catalog, never an invented one.</figcaption>
+        </figure>
+      </div>
+
       <h3>What this site implements</h3>
       <div className="grid3">
         <div className="tile">
