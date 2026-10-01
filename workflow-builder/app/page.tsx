@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Builder } from './builder.tsx';
+import { JevExamples } from './examples.tsx';
 import { ClassifyPanel, ExtractPanel } from './functions.tsx';
 import { Articles, WhereElse, WhyJev } from './info.tsx';
 import { TemplatesPanel } from './templates.tsx';
@@ -101,6 +102,13 @@ export default function Home() {
         />
       </div>
 
+      <JevExamples
+        onBuild={(text) => {
+          setSeed((x) => ({ text, n: (x?.n ?? 0) + 1 }));
+          setTab('builder');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
       <WhyJev />
       <WhereElse />
       <Articles />

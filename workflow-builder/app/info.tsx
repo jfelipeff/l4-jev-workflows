@@ -94,25 +94,27 @@ export function WhyJev() {
               <td>5.52 s · $0.054, 5/5 correct</td>
             </tr>
             <tr>
-              <td>Extract 11 billing fields (incl. line items) from an order form</td>
+              <td>Extract 11 billing fields (incl. line items) from the sample order form (3 runs)</td>
               <td>
-                <strong>0.5–0.75 s · $0.0007</strong>, 11/11 correct
+                <strong>0.66 s · $0.00046</strong>, 11/11 correct
               </td>
-              <td>not measured</td>
+              <td>4.96 s · $0.0154, 11/11 correct</td>
             </tr>
             <tr>
-              <td>Classify a support ticket into billing / technical / sales</td>
+              <td>Classify the 4 sample support tickets into billing / technical / sales (2 runs each)</td>
               <td>
-                <strong>0.18–0.30 s · $0.000024</strong>
+                <strong>0.20 s · $0.000025</strong>, 8/8 correct
               </td>
-              <td>not measured</td>
+              <td>2.53 s · $0.0041, 8/8 correct</td>
             </tr>
           </tbody>
         </table>
       </div>
       <p className="hint">
-        The builder comparison ran the same 5 descriptions through Jev and through a claude-opus-5 agent on Loopfour (cost as reported
-        by Loopfour): 8.6× faster and about 128× cheaper. Studio&apos;s Copilot took 11 s to set up the billing-exceptions template.
+        Each row ran the same inputs through Jev and through a claude-opus-5 agent on Loopfour, scored the same way, with wall-clock
+        times and the cost Loopfour reports. Jev was 8.6× faster and 128× cheaper building workflows, 7.6× faster and 34× cheaper
+        extracting, and 12.7× faster and 163× cheaper classifying, with the same accuracy. Studio&apos;s Copilot took 11 s to set up
+        the billing-exceptions template. Scripts: <code>npm run compare</code> and <code>npm run compare:functions</code>.
       </p>
 
       <h3>What changes for Studio users</h3>

@@ -107,26 +107,29 @@ The docs and Studio disagree in places; these were checked by creating and runni
 - step outputs: `{{steps.<stepId>.<field>}}` (not `{{steps.x.output.y}}`, which resolves to empty)
 - a workflow created with `steps` only has no canvas; the `PATCH /canvas` call adds it
 
-## Results (first 5 descriptions in `test/cases.ts`)
+## Results: Jev vs an LLM on the same inputs
 
-| | Jev (this builder) | LLM: claude-opus-5 as a Loopfour agent |
-|---|---|---|
-| correct structure | 5/5 | 5/5 |
-| time per workflow | **0.64 s** | 5.52 s (8.6x slower) |
-| cost per workflow | **$0.00042** | $0.054, as reported by Loopfour (~128x more) |
-| LLM calls | 0 | 1 |
+The LLM side is claude-opus-5 run as a custom Loopfour agent; cost is what Loopfour reports, times are wall-clock.
 
-Reproduce with `npm run compare` (creates or reuses a custom agent `[jev-builder] LLM workflow planner (baseline)`
-in the workspace; that LLM runs on Loopfour, outside this builder).
+| Task | Jev | LLM (claude-opus-5) | Jev is |
+|---|---|---|---|
+| Build a workflow (first 5 descriptions in `test/cases.ts`) | **0.64 s · $0.00042**, 5/5 correct | 5.52 s · $0.054, 5/5 correct | 8.6× faster, 128× cheaper |
+| Extract 11 checks (8 fields + 3 line items) from the sample order form, 3 runs | **0.66 s · $0.00046**, 11/11 every run | 4.96 s · $0.0154, 11/11 every run | 7.6× faster, 34× cheaper |
+| Classify the 4 sample tickets (billing / technical / sales), 2 runs each | **0.20 s · $0.000025**, 8/8 | 2.53 s · $0.0041, 8/8 | 12.7× faster, 163× cheaper |
+
+Reproduce with `npm run compare` (builder) and `npm run compare:functions` (extraction and classification, on the
+samples in `lib/samples.ts`). Both create or reuse custom agents in the workspace (`[jev-builder] …`, `[jev-compare] …`);
+that LLM runs on Loopfour, outside this project's pipeline.
 
 ## Run
 
 ```bash
 npm install
 # .env.local: TYPESAFE_API_KEY=... (server) and, for tests/compare only, LOOPFOUR_API_KEY=...
-npm test          # 5 cases, saved catalog snapshot, cached Jev answers; never calls Loopfour
+npm test          # 70 cases (incl. all 29 templates × 2 phrasings), saved catalog snapshot, cached Jev answers; never calls Loopfour
 npm run dev       # http://localhost:3000, paste a Loopfour key in the page
 npm run compare   # Jev vs claude-opus-5 on the same 5 descriptions
+npm run compare:functions  # Jev vs claude-opus-5 on the sample order form and tickets
 ```
 
 The deployed site has **no keys of its own**: each visitor enters their Loopfour key and their Jev

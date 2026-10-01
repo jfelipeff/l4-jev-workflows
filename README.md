@@ -35,13 +35,32 @@ Descriptions of Loopfour's own templates are recognized and recreated step for s
 
 ![The description is cut into parts and Jev files each one under a real block from the live catalog, then the workflow is created in Loopfour Studio](assets/readme-illustrations/02-workflow-builder.png)
 
+## Workflows that use Jev extraction and classification
+
+Describe a step that extracts fields or sorts a document into labels, and the builder adds a **Jev Extraction**
+or **Jev Classification** step (an API Request block calling `/api/extract` or `/api/classify`), with no AI
+Agent and no LLM at run time. Each of these prompts was checked against the live builder:
+
+| Prompt | Workflow the builder creates |
+|---|---|
+| *When a signed contract arrives, extract the customer name, annual fee, start date, billing frequency and payment terms, then create a customer in Stripe and notify #billing in Slack.* | **Jev Extraction** → Stripe: Create Customer → Slack: Send Message |
+| *Extract the invoice number, vendor, total and due date from the invoice, then create a bill in QuickBooks.* | **Jev Extraction** → QuickBooks: Create Bill |
+| *Extract the vendor, amount and expense category from the receipt. If the amount is over $5,000, ask cfo@acme.com for approval, then create a bill in QuickBooks.* | **Jev Extraction** → Condition → Approval → QuickBooks: Create Bill |
+| *Extract the payer, amount and invoice reference from the remittance email, then notify #cash-app in Slack with the result.* | **Jev Extraction** → Slack: Send Message |
+| *Classify the support ticket as billing, technical or sales, then post it to #support in Slack.* | **Jev Classification** → Slack: Send Message |
+| *Classify the customer's collections reply as promise to pay, dispute, payment sent or out of office, then notify #collections in Slack.* | **Jev Classification** → Slack: Send Message |
+| *Search Gmail for new emails every hour, classify them as invoice, receipt or other and add the results to a Google Sheet.* | Schedule → Gmail: Search Emails → **Jev Classification** → Google Sheets: Append Values |
+| *Classify each vendor invoice as software, travel, marketing or office supplies and add a row to the Google Sheet.* | **Jev Classification** → Google Sheets: Append Values |
+
 ## Measured
 
-| Task | Jev | LLM (claude-opus-5) |
-|---|---|---|
-| Build a workflow from a description (5 descriptions) | **0.64 s · $0.00042**, 5/5 correct | 5.52 s · $0.054, 5/5 correct |
-| Extract 11 billing fields (incl. line items) from an order form | **0.5–0.75 s · $0.0007**, 11/11 correct | not measured |
-| Classify a support ticket | **0.18–0.30 s · $0.000024** | not measured |
+Same inputs on both sides, scored the same way; the LLM is claude-opus-5 run as a Loopfour agent, with the cost Loopfour reports.
+
+| Task | Jev | LLM (claude-opus-5) | Jev is |
+|---|---|---|---|
+| Build a workflow from a description (5 descriptions) | **0.64 s · $0.00042**, 5/5 correct | 5.52 s · $0.054, 5/5 correct | 8.6× faster, 128× cheaper |
+| Extract 11 billing fields (incl. line items) from an order form, 3 runs | **0.66 s · $0.00046**, 11/11 correct | 4.96 s · $0.0154, 11/11 correct | 7.6× faster, 34× cheaper |
+| Classify support tickets (4 tickets × 2 runs) | **0.20 s · $0.000025**, 8/8 correct | 2.53 s · $0.0041, 8/8 correct | 12.7× faster, 163× cheaper |
 
 ## Try it
 

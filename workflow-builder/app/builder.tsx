@@ -15,7 +15,7 @@ type PlanResponse = {
 const EXAMPLES = [
   'Scan Stripe events daily for duplicate charges, pricing mismatches, failed renewals and unexpected plan changes.',
   'Extract the invoice number, vendor, total and due date from the invoice, then create a bill in QuickBooks.',
-  'Every hour, search Gmail for new emails, classify them as invoice, receipt or other and add the results to a Google Sheet.',
+  'Search Gmail for new emails every hour, classify them as invoice, receipt or other and add the results to a Google Sheet.',
   'If the deal amount is over $50,000, ask cfo@acme.com for approval. Then create a customer in Stripe and notify #sales in Slack saying "New enterprise customer".',
   'Every Monday at 9am, run the QuickBooks profit and loss report and email it to cfo@acme.com with Gmail.',
 ];
