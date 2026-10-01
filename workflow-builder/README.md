@@ -7,6 +7,7 @@ Live: https://l4-jev-workflow-builder.vercel.app — three functions, all on Jev
 | Workflow builder | plain-language description → Loopfour Studio workflow | `POST /api/plan`, `POST /api/create` |
 | Extraction | document + JSON Schema (or field list) → JSON, every value copied from the document | `POST /api/extract` |
 | Classification | document + labels → label(s) with probabilities and a review flag | `POST /api/classify` |
+| Jev vs LLM race | the same input to Jev and to claude-opus-5 (an agent in the visitor's Loopfour workspace, `[jev-race] …`) at the same moment, timed in the browser | `POST /api/race` for the LLM side |
 
 Visitors bring their own keys (Loopfour for the builder, Jev for everything); the site stores none.
 
@@ -114,8 +115,8 @@ The LLM side is claude-opus-5 run as a custom Loopfour agent; cost is what Loopf
 | Task | Jev | LLM (claude-opus-5) | Jev is |
 |---|---|---|---|
 | Build a workflow (first 5 descriptions in `test/cases.ts`) | **0.64 s · $0.00042**, 5/5 correct | 5.52 s · $0.054, 5/5 correct | 8.6× faster, 128× cheaper |
-| Extract 11 checks (8 fields + 3 line items) from the sample order form, 3 runs | **0.66 s · $0.00046**, 11/11 every run | 4.96 s · $0.0154, 11/11 every run | 7.6× faster, 34× cheaper |
-| Classify the 4 sample tickets (billing / technical / sales), 2 runs each | **0.20 s · $0.000025**, 8/8 | 2.53 s · $0.0041, 8/8 | 12.7× faster, 163× cheaper |
+| Extract 11 checks (8 fields + 3 line items) from the sample order form, 3 runs | **0.47 s · $0.00049**, 11/11 every run | 5.00 s · $0.0154, 11/11 every run | 10.6× faster, 32× cheaper |
+| Classify the 4 sample tickets (billing / technical / sales), 2 runs each | **0.20 s · $0.000025**, 8/8 | 2.85 s · $0.0041, 8/8 | 14.4× faster, 163× cheaper |
 
 Reproduce with `npm run compare` (builder) and `npm run compare:functions` (extraction and classification, on the
 samples in `lib/samples.ts`). Both create or reuse custom agents in the workspace (`[jev-builder] …`, `[jev-compare] …`);

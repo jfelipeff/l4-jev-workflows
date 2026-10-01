@@ -58,17 +58,19 @@ async function runAgent(id: string, userMessage: string) {
 }
 
 // ---- extraction: 8 fields + 3 line items = 11 checks -------------------------------------------------
+// Exact values: text must match the document word for word (case and spacing aside).
 const EXPECTED_ITEMS = [
-  ['retail platform', 48000],
-  ['pos connect', 18000],
-  ['premium support', 6000],
+  ['Brightpath Retail Platform subscription (40 stores)', 48000],
+  ['POS Connect module', 18000],
+  ['Premium Support (24x7)', 6000],
 ] as const;
+const norm = (v: unknown) => String(v ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 function scoreExtraction(o: Record<string, unknown>) {
   const misses: string[] = [];
   const num = (v: unknown) => (typeof v === 'string' ? Number(v.replace(/[$,]/g, '')) : v);
   const check = (name: string, ok: boolean) => ok || misses.push(`${name}=${JSON.stringify(o[name])}`);
-  check('customer_name', /northwind outfitters/i.test(String(o.customer_name ?? '')));
+  check('customer_name', norm(o.customer_name) === norm('Northwind Outfitters, Inc.'));
   check('acv', num(o.acv) === 72000);
   check('total_contract_value', num(o.total_contract_value) === 216000);
   check('term_months', num(o.term_months) === 36);
@@ -78,7 +80,7 @@ function scoreExtraction(o: Record<string, unknown>) {
   check('auto_renews', o.auto_renews === true || o.auto_renews === 'true');
   const items = (Array.isArray(o.line_items) ? o.line_items : []) as Record<string, unknown>[];
   for (const [desc, fee] of EXPECTED_ITEMS) {
-    const ok = items.some((i) => String(i.description ?? '').toLowerCase().includes(desc) && num(i.annual_fee) === fee);
+    const ok = items.some((i) => norm(i.description) === norm(desc) && num(i.annual_fee) === fee);
     if (!ok) misses.push(`line item "${desc}"`);
   }
   return { correct: 11 - misses.length, misses };

@@ -170,3 +170,21 @@ th { color: var(--muted); font-weight: 600; }
 .examples-list .steps { margin: 0; font-size: 12.5px; color: var(--muted); }
 .examples-list .jevstep { color: var(--accent); font-weight: 600; }
 .examples-list .secondary { justify-self: start; }
+
+/* --- Jev vs LLM race ------------------------------------------------------ */
+.race-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.race { display: grid; gap: 14px; }
+.lane-head { display: flex; align-items: baseline; gap: 10px; }
+.lane-head .clock { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; }
+.lane.jev .clock { color: var(--accent); }
+.lane .track { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; height: 16px; overflow: hidden; margin: 6px 0 4px; }
+.lane .runner { height: 100%; border-radius: 999px; background: #5b6168; }
+.lane.jev .runner { background: var(--accent); }
+.lane .runner.done { box-shadow: inset -4px 0 0 rgba(255, 255, 255, 0.6); }
+.lane p { margin: 0; }
+.verdict { margin: 16px 0 8px; font-size: 17px; }
+.verdict strong { color: var(--accent); }
+.race-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.race-answers ol { margin: 0; padding-left: 18px; }
+.race-answers .jevstep { color: var(--accent); }
+tr.differs td { color: #ffb4a8; }

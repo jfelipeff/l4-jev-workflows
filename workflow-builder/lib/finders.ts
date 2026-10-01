@@ -140,7 +140,10 @@ export function phrases(line: string, max = 8, limit = 250): string[] {
   const out = new Set<string>([line]);
   for (let n = 1; n <= Math.min(max, words.length); n++) {
     for (let i = 0; i + n <= words.length; i++) {
-      const p = words.slice(i, i + n).join(' ').replace(/^[^\w$€£#@(]+|[^\w%)]+$/g, '');
+      const raw = words.slice(i, i + n).join(' ');
+      let p = raw.replace(/^[^\w$€£#@(]+|[^\w%)]+$/g, '');
+      // keep the period of a company abbreviation: "Northwind Outfitters, Inc."
+      if (/\b(?:inc|ltd|co|corp|llc|plc|gmbh|bv|ag|sa|jr|sr)\.$/i.test(raw.replace(/[^\w.]+$/, ''))) p += '.';
       if (p) out.add(p);
       if (out.size >= limit) return [...out];
     }

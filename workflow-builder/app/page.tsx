@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Builder } from './builder.tsx';
 import { JevExamples } from './examples.tsx';
+import { RacePanel } from './race.tsx';
 import { ClassifyPanel, ExtractPanel } from './functions.tsx';
 import { Articles, WhereElse, WhyJev } from './info.tsx';
 import { TemplatesPanel } from './templates.tsx';
@@ -12,6 +13,7 @@ const REPO_NAME = 'jfelipeff/l4-jev-workflows';
 const REPO_URL = `https://github.com/${REPO_NAME}`;
 
 const TABS = [
+  { id: 'race', label: 'Jev vs LLM race' },
   { id: 'builder', label: 'Workflow builder' },
   { id: 'extract', label: 'Extraction' },
   { id: 'classify', label: 'Classification' },
@@ -22,7 +24,7 @@ type Tab = (typeof TABS)[number]['id'];
 export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [jevKey, setJevKey] = useState('');
-  const [tab, setTab] = useState<Tab>('builder');
+  const [tab, setTab] = useState<Tab>('race');
   const [seed, setSeed] = useState<{ text: string; n: number } | undefined>();
 
   return (
@@ -82,6 +84,9 @@ export default function Home() {
       </nav>
 
       {/* Panels stay mounted so switching tabs keeps their inputs and results. */}
+      <div hidden={tab !== 'race'}>
+        <RacePanel apiKey={apiKey} jevKey={jevKey} />
+      </div>
       <div hidden={tab !== 'builder'}>
         <Builder apiKey={apiKey} jevKey={jevKey} seed={seed} />
       </div>

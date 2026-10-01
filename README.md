@@ -22,6 +22,7 @@ assembles the result. Jev never writes text, so a total, a date or a block name 
 | **Workflow builder** | Plain-language description → Loopfour Studio workflow, created through the Loopfour Workflows API | `POST /api/plan`, `POST /api/create` |
 | **Extraction** | Document + JSON Schema (or a field list) → JSON, every value copied from the document | `POST /api/extract` |
 | **Classification** | Document + labels → label(s) with probabilities and a review flag | `POST /api/classify` |
+| **Jev vs LLM race** | The same input sent to Jev and to claude-opus-5 at the same moment, both timed live in the browser | `POST /api/race` (LLM side) |
 
 Extraction and classification plug into any Studio workflow through an **API Request** block. An
 optional cascade sends only the answers Jev is unsure about to an LLM, and keeps an answer only if it
@@ -59,8 +60,8 @@ Same inputs on both sides, scored the same way; the LLM is claude-opus-5 run as 
 | Task | Jev | LLM (claude-opus-5) | Jev is |
 |---|---|---|---|
 | Build a workflow from a description (5 descriptions) | **0.64 s · $0.00042**, 5/5 correct | 5.52 s · $0.054, 5/5 correct | 8.6× faster, 128× cheaper |
-| Extract 11 billing fields (incl. line items) from an order form, 3 runs | **0.66 s · $0.00046**, 11/11 correct | 4.96 s · $0.0154, 11/11 correct | 7.6× faster, 34× cheaper |
-| Classify support tickets (4 tickets × 2 runs) | **0.20 s · $0.000025**, 8/8 correct | 2.53 s · $0.0041, 8/8 correct | 12.7× faster, 163× cheaper |
+| Extract 11 billing fields (incl. line items) from an order form, 3 runs | **0.47 s · $0.00049**, 11/11 correct | 5.00 s · $0.0154, 11/11 correct | 10.6× faster, 32× cheaper |
+| Classify support tickets (4 tickets × 2 runs) | **0.20 s · $0.000025**, 8/8 correct | 2.85 s · $0.0041, 8/8 correct | 14.4× faster, 163× cheaper |
 
 ## Try it
 

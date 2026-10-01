@@ -32,6 +32,14 @@ export type Extraction = {
   usage: { requests: number; questions: number; jev_ms: number; input_tokens: number; usd: number; model: string };
 };
 
+/** A row's text without its amounts (with a currency sign or cents) and its leading row number. */
+const rowText = (text: string) =>
+  text
+    .replace(/(?:USD|EUR|GBP|[$€£])\s?\d[\d,]*(?:\.\d+)?|\b\d{1,3}(?:,\d{3})*\.\d{2}\b/g, ' ')
+    .replace(/^\s*\d{1,3}[.)]?\s+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 const human = (name: string) => name.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 
 function kindOf(name: string, s: Record<string, unknown>): Kind {
@@ -165,7 +173,17 @@ export async function extract(
       kept[f.name] = rowLines.filter((l) => (noul(a1, `${k}__${l.id}`) ?? 0) >= 0.5).slice(0, 40);
       for (const [r, row] of kept[f.name].entries()) {
         for (const item of f.items) {
-          if (!['number', 'integer', 'date'].includes(item.kind)) continue;
+          if (!['number', 'integer', 'date'].includes(item.kind)) {
+            // text column: Jev picks the phrase of the row that is this column (copied verbatim)
+            const opts = phrases(rowText(row.text));
+            if (opts.length > 1)
+              q2[`${k}__${r}__${item.name}`] = {
+                type: 'choice',
+                instructions: { question: `Which part of this row is the ${human(item.name)}? Pick the whole value and nothing else.`, row: row.text, ...(item.description && { meaning: item.description }) },
+                criteria: { ...Object.fromEntries(opts.map((p) => [p, null])), [NONE]: 'not in this row' },
+              };
+            continue;
+          }
           const rc = find(item.kind === 'date' ? 'date' : 'numeric', row.text);
           if (rc.length > 1) {
             q2[`${k}__${r}__${item.name}`] = {
@@ -225,13 +243,9 @@ export async function extract(
             const pick = c ? rc.find((x) => String(x.value) === c.choice) : rc.length === 1 ? rc[0] : rc[rc.length - 1];
             entry[item.name] = pick ? pick.value : null;
           } else {
-            // text columns: the row without its amounts (with a currency sign or cents) and leading row number
-            entry[item.name] =
-              row.text
-                .replace(/(?:USD|EUR|GBP|[$€£])\s?\d[\d,]*(?:\.\d+)?|\b\d{1,3}(?:,\d{3})*\.\d{2}\b/g, ' ')
-                .replace(/^\s*\d{1,3}[.)]?\s+/, '')
-                .replace(/\s+/g, ' ')
-                .trim() || row.text;
+            // text columns: the phrase Jev picked, else the row without its amounts and row number
+            const c = choice(a2, `${k}__${r}__${item.name}`);
+            entry[item.name] = c && c.choice !== NONE ? c.choice : rowText(row.text) || row.text;
           }
         }
         return entry;
