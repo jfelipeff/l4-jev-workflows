@@ -1,0 +1,38 @@
+[
+ {
+  "id": "00000000-slack",
+  "provider": "slack",
+  "status": "active",
+  "isDefault": true
+ },
+ {
+  "id": "00000000-sf",
+  "provider": "salesforce",
+  "status": "active",
+  "isDefault": true
+ },
+ {
+  "id": "00000000-ds",
+  "provider": "docusign",
+  "status": "active",
+  "isDefault": true
+ },
+ {
+  "id": "00000000-stripe-a",
+  "provider": "stripe",
+  "status": "active",
+  "isDefault": false
+ },
+ {
+  "id": "00000000-stripe-p",
+  "provider": "stripe",
+  "status": "pending",
+  "isDefault": true
+ },
+ {
+  "id": "00000000-ns",
+  "provider": "netsuite",
+  "status": "pending",
+  "isDefault": true
+ }
+]

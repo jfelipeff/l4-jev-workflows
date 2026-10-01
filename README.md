@@ -8,3 +8,4 @@ HTTP endpoint that the Loopfour workflow calls.
 | Folder | Loopfour step |
 |---|---|
 | [`contract-to-invoice`](contract-to-invoice) | "Extract the billing terms: amount, billing frequency, start date, NET terms, line items, and tax jurisdiction" from a signed DocuSign contract · `POST https://l4-jev-contract-to-invoice.vercel.app/api/extract` |
+| [`workflow-builder`](workflow-builder) | Website: plain-language description → Loopfour Studio workflow, mapped by Jev (no LLM) from the live block catalog |
