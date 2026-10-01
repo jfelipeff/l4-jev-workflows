@@ -256,6 +256,37 @@ function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answer
       questions.push({ id: `${s.id}_block`, stepId: s.id, kind: 'choose', prompt: `Does "${s.clause}" need an AI step?`, options: [...(s.block?.alternatives ?? []).filter((a) => a.id !== 'agent'), removeOption], replan: true, forceKey: s.forceKey });
     }
     step = { id: s.id, name: `AI: ${s.prompt ?? s.clause}`.slice(0, 120), type: 'agent', config };
+  } else if (s.kind === 'jev') {
+    // Jev step: an API Request to this website's endpoint. The visitor's Jev key lives in the
+    // workflow secret JEV_API_KEY (set when the workflow is created), never in the step itself.
+    const j = s.jev!;
+    const answered = answers[`${s.id}.items`];
+    const items = answered ? answered.split(',').map((x) => x.trim()).filter(Boolean) : j.items;
+    const what = j.endpoint === 'extract' ? 'Fields to extract' : 'Labels to classify into';
+    title = j.endpoint === 'extract' ? 'Jev Extraction' : 'Jev Classification';
+    canvasType = 'api';
+    confidence = s.kindConfidence;
+    if (!items.length || (j.endpoint === 'classify' && items.length < 2)) {
+      questions.push({ id: `${s.id}.items`, stepId: s.id, kind: 'input', prompt: `${what} for "${s.clause}" (comma-separated)` });
+    }
+    const document = s.fields.input?.value ?? '{{input}}';
+    const body =
+      j.endpoint === 'extract'
+        ? { document, instructions: s.clause, fields: items.map((x) => x.replace(/[^a-z0-9]+/gi, '_').toLowerCase()) }
+        : { document, instructions: s.clause, labels: items };
+    set('url', `${draft.siteUrl}/api/${j.endpoint}`);
+    set('method', 'POST', 'dropdown');
+    set('headers', [{ Key: 'x-jev-key', Value: '{{secrets.JEV_API_KEY}}' }], 'table');
+    set('body', body, 'code');
+    set('responseFormat', 'json', 'dropdown');
+    set('timeout', 30000);
+    set('retries', 2);
+    set('retryNonIdempotent', true, 'switch'); // extraction/classification has no side effects
+    detail = `${j.endpoint === 'extract' ? 'fields' : 'labels'}: ${items.join(', ') || '?'} · reads ${document}`;
+    if (lowKind) {
+      questions.push({ id: `${s.id}_block`, stepId: s.id, kind: 'choose', prompt: `Is "${s.clause}" a ${title.toLowerCase()} step?`, options: [...(s.block?.alternatives ?? []).filter((a) => a.id !== s.blockType), removeOption], replan: true, forceKey: s.forceKey });
+    }
+    step = { id: s.id, name: `${title}: ${s.clause}`.slice(0, 120), type: 'action', action: 'api.request', config };
   } else if (s.kind === 'condition') {
     const c = s.condition!;
     const left = answers[`${s.id}.left`] ?? c.left.value;
@@ -304,7 +335,7 @@ function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answer
     step = { id: s.id, name: `API request: ${s.clause}`.slice(0, 120), type: 'action', action: 'api.request', config };
   }
 
-  if (lowKind && !['integration', 'agent'].includes(s.kind)) {
+  if (lowKind && !['integration', 'agent', 'jev'].includes(s.kind)) {
     questions.push({ id: `${s.id}_kind`, stepId: s.id, kind: 'info', prompt: `Jev was unsure "${s.clause}" is a ${s.kind} step (${Math.round(s.kindConfidence * 100)}%).` });
   }
   void draft;

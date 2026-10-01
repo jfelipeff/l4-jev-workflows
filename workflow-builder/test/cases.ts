@@ -104,4 +104,31 @@ export const CASES: { description: string; expect: Expect }[] = [
       stepsInclude: [{ type: 'action', action: ['netsuite.searchRecords', 'netsuite.getRecord'] }, { type: 'agent' }],
     },
   },
+  {
+    // Extraction goes to Jev (API Request to /api/extract), not to an AI Agent.
+    description: 'Extract the invoice number, vendor, total and due date from the invoice, then create a bill in QuickBooks.',
+    expect: {
+      trigger: { type: 'api' },
+      stepsInclude: [
+        {
+          type: 'action',
+          action: 'api.request',
+          config: { url: 'https://l4-jev-workflow-builder.vercel.app/api/extract', body: { fields: ['invoice_number', 'vendor', 'total', 'due_date'] } },
+        },
+        { type: 'action', action: 'quickbooks.createBill' },
+      ],
+    },
+  },
+  {
+    // Classification goes to Jev (API Request to /api/classify).
+    description: 'Every hour, search Gmail for new emails, classify them as invoice, receipt or other and add the results to a Google Sheet.',
+    expect: {
+      trigger: { type: 'schedule', cron: '0 * * * *' },
+      stepsInclude: [
+        { type: 'action', action: 'gmail.searchEmails' },
+        { type: 'action', action: 'api.request', config: { url: 'https://l4-jev-workflow-builder.vercel.app/api/classify', body: { labels: ['invoice', 'receipt', 'other'] } } },
+        { type: 'action', action: ['google-sheets.appendValues', 'google-sheets.insertRow', 'google-sheets.upsertRow', 'google-sheets.updateValues'] },
+      ],
+    },
+  },
 ];

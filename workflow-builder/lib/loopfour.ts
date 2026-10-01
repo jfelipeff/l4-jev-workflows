@@ -65,3 +65,17 @@ export async function createWorkflow(
   await call(key, 'PATCH', `/workflows/${created.id}/canvas`, { canvasState, steps: workflow.steps });
   return { id: created.id, url: STUDIO_URL(created.id) };
 }
+
+/** Store a value as a workflow secret (needs the secrets:write scope); false when the key lacks it. */
+export async function setWorkflowSecret(key: string, workflowId: string, name: string, value: string) {
+  try {
+    await call(key, 'POST', `/workflows/${workflowId}/secrets`, { key: name, value });
+    return true;
+  } catch (err) {
+    if (err instanceof LoopfourError && err.status === 409) {
+      await call(key, 'PUT', `/workflows/${workflowId}/secrets/${name}`, { value }).catch(() => null);
+      return true;
+    }
+    return false;
+  }
+}

@@ -23,6 +23,8 @@ const cache: JevCache = { get: (k) => store[k], set: (k, v) => void (store[k] = 
 function check(actual: unknown, expected: unknown, path: string, errors: string[]) {
   if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
     for (const [k, v] of Object.entries(expected)) check((actual as Record<string, unknown>)?.[k], v, `${path}.${k}`, errors);
+  } else if (Array.isArray(expected) && Array.isArray(actual)) {
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) errors.push(`${path}: got ${JSON.stringify(actual)}, want ${JSON.stringify(expected)}`);
   } else if (Array.isArray(expected)) {
     if (!expected.includes(actual)) errors.push(`${path}: got ${JSON.stringify(actual)}, want one of ${JSON.stringify(expected)}`);
   } else if (String(actual) !== String(expected)) {

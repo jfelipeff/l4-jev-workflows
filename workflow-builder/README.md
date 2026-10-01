@@ -1,5 +1,42 @@
 # workflow-builder
 
+Live: https://l4-jev-workflow-builder.vercel.app — three functions, all on Jev (TypeSafe), no LLM:
+
+| Function | What it does | Endpoint |
+|---|---|---|
+| Workflow builder | plain-language description → Loopfour Studio workflow | `POST /api/plan`, `POST /api/create` |
+| Extraction | document + JSON Schema (or field list) → JSON, every value copied from the document | `POST /api/extract` |
+| Classification | document + labels → label(s) with probabilities and a review flag | `POST /api/classify` |
+
+Visitors bring their own keys (Loopfour for the builder, Jev for everything); the site stores none.
+
+### Calling extraction / classification from a Loopfour workflow
+
+Use an **API Request** block (the builder creates it for you):
+
+```json
+{
+  "url": "https://l4-jev-workflow-builder.vercel.app/api/extract",
+  "method": "POST",
+  "headers": [{ "Key": "x-jev-key", "Value": "{{secrets.JEV_API_KEY}}" }],
+  "body": {
+    "document": "{{steps.<previous step>.result}}",
+    "instructions": "Extract the invoice fields.",
+    "schema": { "type": "object", "properties": { "invoice_number": { "type": "string" }, "total": { "type": "number" }, "due_date": { "type": "string", "format": "date" } } }
+  },
+  "responseFormat": "json"
+}
+```
+
+`/api/classify` takes `{document, instructions?, labels, multi_label?, allow_none?}` the same way. The workflow
+needs a secret `JEV_API_KEY` (Loopfour checks it before the run starts); the builder stores it when your
+Loopfour key has the `secrets:write` scope, otherwise add it in Studio.
+
+Measured: 11 billing fields from an order form in 0.5–0.75 s for $0.0007; a support ticket classified in
+0.18–0.30 s for $0.000024.
+
+## Workflow builder
+
 A website that turns a plain-language description into a Loopfour Studio workflow in about a second,
 using **Jev** (TypeSafe's System One model) instead of an LLM. Jev only ever *chooses*: every trigger,
 app, action and field comes from the workspace's live block catalog (`GET /api/v1/blocks`), and every

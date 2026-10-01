@@ -25,7 +25,7 @@ export { OK };
 export type Alt = { id: string; label: string; p: number };
 export type Pick<T = string> = { value: T | null; confidence: number | null; alternatives?: Alt[] };
 
-export type StepKind = 'integration' | 'agent' | 'condition' | 'approval' | 'wait' | 'http';
+export type StepKind = 'integration' | 'agent' | 'jev' | 'condition' | 'approval' | 'wait' | 'http';
 export type Role = 'fetch' | 'analyze' | 'decide' | 'approve' | 'act' | 'notify' | 'wait';
 export type StepDraft = {
   id: string;
@@ -40,7 +40,8 @@ export type StepDraft = {
   action?: Pick & { label?: string; def?: Action };
   fields: Record<string, Pick & { field: Field }>;
   condition?: { left: Pick; operator: Pick; right: Pick };
-  prompt?: string; // AI Agent: the user's own words for this part, copied
+  prompt?: string; // AI Agent / Jev step: the user's own words for this part, copied
+  jev?: { endpoint: 'extract' | 'classify'; items: string[] }; // fields to extract / labels to classify into
   outputs: string[];
 };
 export type TriggerDraft = {
@@ -55,6 +56,7 @@ export type TriggerDraft = {
 export type Template = { slug: string; name: string; description: string; steps?: { name?: string }[] };
 export type Draft = {
   description: string;
+  siteUrl: string; // where /api/extract and /api/classify live (this website)
   trigger: TriggerDraft;
   steps: StepDraft[];
   blockNames: Record<string, string>;
@@ -74,8 +76,8 @@ const CORE_USE: Record<string, { kind: StepKind; role: Role; use: string }> = {
     kind: 'agent',
     role: 'analyze',
     use:
-      'AI judgement over data: detect anomalies, issues or fraud, classify or categorize, summarize, extract fields from ' +
-      'documents or messages, score, review, or decide something from unstructured content',
+      'Open-ended AI judgement or writing: detect anomalies, issues or fraud, summarize, explain, draft text, or decide ' +
+      'something that needs reasoning over unstructured content',
   },
   condition: {
     kind: 'condition',
@@ -86,6 +88,21 @@ const CORE_USE: Record<string, { kind: StepKind; role: Role; use: string }> = {
   wait: { kind: 'wait', role: 'wait', use: 'Pause for a set amount of time, like "wait 2 hours" or "a day later"' },
   api: { kind: 'http', role: 'act', use: 'Call an HTTP URL or the API of a service that is not one of the listed apps' },
 };
+/** Jev-powered steps: an API Request to this website's /api/extract or /api/classify (no LLM). */
+const JEV_BLOCKS: Record<string, { endpoint: 'extract' | 'classify'; name: string; use: string }> = {
+  'jev-extract': {
+    endpoint: 'extract',
+    name: 'Jev Extraction',
+    use: 'Pull specific fields or values (names, amounts, dates, IDs, line items) out of documents, emails or records into structured data',
+  },
+  'jev-classify': {
+    endpoint: 'classify',
+    name: 'Jev Classification',
+    use: 'Sort, label, tag, categorize or route items into a given set of categories',
+  },
+};
+const ANALYSIS: StepKind[] = ['agent', 'jev'];
+
 const ROLE_ORDER: Role[] = ['fetch', 'analyze', 'decide', 'approve', 'wait', 'act', 'notify'];
 const NOTIFY_APPS = ['slack', 'gmail', 'outlook', 'resend'];
 
@@ -119,6 +136,8 @@ const CUES: Record<string, RegExp> = {
   approval: /approv|sign[ -]?off|authori[sz]|review and confirm/i,
   wait: /\b(?:wait|delay|pause|later|after)\b.*\d|\d.*\b(?:later|after)\b/i,
   api: /https?:\/\/|\bapi\b|webhook|endpoint/i,
+  'jev-extract': /\b(?:extract|pull out|capture|parse|pick out|read (?:the|off)|fields?)\b/i,
+  'jev-classify': /\b(?:classif|categori[sz]|label|tag|sort|route|triage|bucket)/i,
 };
 
 /**
@@ -127,6 +146,7 @@ const CUES: Record<string, RegExp> = {
  * next to an "if" or a delay, so apps must be named and control blocks need their textual cue.
  */
 function selected(type: string, name: string, p: number, clause: string): boolean {
+  if (JEV_BLOCKS[type]) return p >= USES && CUES[type].test(clause) && !CUES.condition.test(clause);
   if (type === 'agent') return p >= USES && !CUES.condition.test(clause); // "if X > 5000" is a rule, not AI judgement
   if (CUES[type]) return p >= 0.7 && CUES[type].test(clause);
   return p >= 0.85 && names(name, type).some((n) => clause.toLowerCase().includes(n));
@@ -136,6 +156,25 @@ const names = (name: string, type: string) => {
   const base = name.toLowerCase();
   return [...new Set([base, base.replace(/s$/, ''), base.replace(/\s+/g, ''), type.replace(/-/g, ' '), type])];
 };
+
+/** "extract the invoice number, vendor, total and due date from ..." -> [invoice_number, vendor, total, due_date] */
+export function fieldsIn(clause: string): string[] {
+  const m = clause.match(/\b(?:extract|pull out|pull|capture|parse|read|get|grab|collect|record)\s+(?:the\s+|all\s+|its\s+|their\s+)?(.+?)(?:\s+(?:from|out of|in|on|of each|of the)\s+|$)/i);
+  return listItems(m?.[1] ?? '').map((x) => x.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '').toLowerCase()).filter((x) => x && x.split('_').length <= 4);
+}
+/** "classify each email as invoice, receipt or other" -> [invoice, receipt, other] */
+export function labelsIn(clause: string): string[] {
+  const m = clause.match(/\b(?:as|into|between|by)\s+(?:either\s+|one of\s+)?(.+?)(?:\s+(?:and then|then)\b|$)/i);
+  const items = listItems(m?.[1] ?? '');
+  return items.length >= 2 ? items : [];
+}
+function listItems(text: string): string[] {
+  return text
+    .replace(/["“”']/g, '')
+    .split(/\s*,\s*(?:and\s+|or\s+)?|\s+(?:and|or|&)\s+/i)
+    .map((x) => x.replace(/^(?:the|a|an|its|their)\s+/i, '').trim())
+    .filter((x) => x && x.split(/\s+/).length <= 4);
+}
 
 /** Role of an app step from its action: list/get/search reads, send/post notifies, the rest acts. */
 function roleOfAction(blockType: string, op: string): Role {
@@ -147,7 +186,7 @@ function roleOfAction(blockType: string, op: string): Role {
 export async function plan(
   description: string,
   catalog: Catalog,
-  opts: { cache?: JevCache; force?: Force; jevKey?: string; templates?: Template[] } = {},
+  opts: { cache?: JevCache; force?: Force; jevKey?: string; templates?: Template[]; siteUrl?: string } = {},
 ): Promise<Draft> {
   const usage = { rounds: 0, questions: 0, jevMs: 0, inputTokens: 0, usd: 0, model: '' };
   const ask = async (state: unknown, qs: Record<string, Question>) => {
@@ -169,8 +208,12 @@ export async function plan(
     ...Object.entries(CORE_USE)
       .filter(([type]) => catalog.byType[type])
       .map(([type, c]) => ({ type, name: catalog.byType[type].name, use: c.use })),
+    ...Object.entries(JEV_BLOCKS).map(([type, j]) => ({ type, name: j.name, use: j.use })),
   ];
-  const blockLabels = Object.fromEntries([...catalog.blocks, ...catalog.triggers].map((b) => [b.type, b.name]));
+  const blockLabels = {
+    ...Object.fromEntries([...catalog.blocks, ...catalog.triggers].map((b) => [b.type, b.name])),
+    ...Object.fromEntries(Object.entries(JEV_BLOCKS).map(([t, j]) => [t, j.name])),
+  };
   const blockCriteria = Object.fromEntries(blocks.map((b) => [b.type, `${b.name}: ${b.use}`]));
   const raw = splitClauses(description);
   const clauses = raw.map((c) => c.text);
@@ -300,11 +343,18 @@ export async function plan(
     // (see selected()); strongest first, at most 3.
     const isMain = (type: string) => main?.choice === type && (main?.confidence ?? 0) >= OK;
     const needsAi = noul(a1, `needs_ai_${i}`) ?? 0;
-    const scored = blocks
+    let scored = blocks
       .map((b) => ({ type: b.type, p: Math.max(noul(a1, `uses_${i}__${b.type}`) ?? 0, b.type === 'agent' ? needsAi : 0), name: b.name }))
       .filter((b) => isMain(b.type) || selected(b.type, b.name, b.p, item.text))
-      .sort((x, y) => (isMain(y.type) ? 1 : 0) - (isMain(x.type) ? 1 : 0) || y.p - x.p)
-      .slice(0, MAX_BLOCKS_PER_CLAUSE);
+      .sort((x, y) => (isMain(y.type) ? 1 : 0) - (isMain(x.type) ? 1 : 0) || y.p - x.p);
+    // One analysis step per clause: Jev Extraction/Classification or the AI Agent, whichever Jev
+    // scored higher (Jev wins ties: it is the faster, cheaper option).
+    const analysis = scored.filter((b) => b.type === 'agent' || JEV_BLOCKS[b.type]);
+    if (analysis.length > 1) {
+      const keep = analysis.reduce((best, b) => (b.p > best.p + 0.05 || (Math.abs(b.p - best.p) <= 0.05 && JEV_BLOCKS[b.type]) ? b : best));
+      scored = scored.filter((b) => !analysis.includes(b) || b === keep);
+    }
+    scored = scored.slice(0, MAX_BLOCKS_PER_CLAUSE);
     if (!scored.length || ((noul(a1, `only_trigger_${i}`) ?? 0) >= 0.5 && main?.choice === NONE)) {
       if (!scored.length) trigger.eventClause = trigger.eventClause ?? item.text;
       continue;
@@ -315,6 +365,25 @@ export async function plan(
       if (f?.remove) continue;
       const type = f?.block ?? original;
       const core = CORE_USE[type];
+      const jev = JEV_BLOCKS[type];
+      if (jev) {
+        steps.push({
+          id: '',
+          clause: item.text,
+          branch: item.branch,
+          kind: 'jev',
+          role: 'analyze',
+          blockType: type,
+          forceKey,
+          kindConfidence: f?.block ? 1 : p,
+          block: { value: type, name: jev.name, confidence: f?.block ? 1 : p, alternatives: mainAlts },
+          fields: {},
+          outputs: catalog.byType.api?.outputs ?? ['data'],
+          prompt: item.text,
+          jev: { endpoint: jev.endpoint, items: jev.endpoint === 'extract' ? fieldsIn(item.text) : labelsIn(item.text) },
+        });
+        continue;
+      }
       steps.push({
         id: '',
         clause: item.text,
@@ -499,9 +568,9 @@ export async function plan(
   );
   assignIds();
 
-  // An AI Agent reads what the steps before it fetched.
+  // An analysis step (AI Agent or Jev) reads what the steps before it fetched.
   steps.forEach((s, n) => {
-    if (s.kind !== 'agent') return;
+    if (!ANALYSIS.includes(s.kind)) return;
     const source = [...steps.slice(0, n)].reverse().find((p) => p.role === 'fetch');
     s.fields.input = {
       field: { id: 'input', title: 'Input', control: 'code', valueType: 'json', description: 'Data the agent analyzes', required: false },
@@ -532,7 +601,7 @@ export async function plan(
       } else {
         const vals = valuesFor(field, clauseValues, allValues);
         // After an AI step, a message carries the AI's findings, not the raw data it analyzed.
-        const lastAgent = [...steps.slice(0, n)].reverse().find((p) => p.kind === 'agent');
+        const lastAgent = [...steps.slice(0, n)].reverse().find((p) => ANALYSIS.includes(p.kind));
         const messageRefs = lastAgent ? refs.filter((r) => r.ref.startsWith(`{{steps.${lastAgent.id}.`)) : refs;
         const usefulRefs = isMessage ? messageRefs : refs.filter((r) => !r.ref.startsWith('{{steps.') || field.required);
         if (!vals.length && !field.required && !(isMessage && usefulRefs.length)) return; // nothing could fill it: keep the default
@@ -560,11 +629,11 @@ export async function plan(
   }
   // A message after an AI step carries the AI's findings when the description gives no text.
   steps.forEach((s, n) => {
-    const agent = [...steps.slice(0, n)].reverse().find((p) => p.kind === 'agent');
+    const agent = [...steps.slice(0, n)].reverse().find((p) => ANALYSIS.includes(p.kind));
     if (!agent || s.kind !== 'integration') return;
     for (const field of s.action?.def?.fields ?? []) {
       if (/^(text|message|body|content)$/i.test(field.id) && !s.fields[field.id]?.value) {
-        s.fields[field.id] = { field, value: `{{steps.${agent.id}.text}}`, confidence: 1 };
+        s.fields[field.id] = { field, value: agent.kind === 'jev' ? `{{steps.${agent.id}.data}}` : `{{steps.${agent.id}.text}}`, confidence: 1 };
       }
     }
   });
@@ -584,6 +653,7 @@ export async function plan(
   usage.usd = usage.inputTokens * JEV_PRICE_PER_TOKEN;
   return {
     description,
+    siteUrl: opts.siteUrl ?? 'https://l4-jev-workflow-builder.vercel.app',
     trigger,
     steps,
     blockNames: blockLabels,
@@ -593,7 +663,7 @@ export async function plan(
       covered:
         steps.some((s) => s.role === 'notify') ||
         force.__notify__?.block === NONE ||
-        steps.some((s, n) => s.role === 'act' && steps.slice(0, n).some((p) => p.kind === 'agent')),
+        steps.some((s, n) => s.role === 'act' && steps.slice(0, n).some((p) => ANALYSIS.includes(p.kind))),
       options: NOTIFY_APPS.filter((t) => catalog.byType[t]).map((t) => ({ id: t, label: blockLabels[t], p: 0 })),
     },
     template: template ? { slug: template.slug, name: template.name, fit: fits } : null,

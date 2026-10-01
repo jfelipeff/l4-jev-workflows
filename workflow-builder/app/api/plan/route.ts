@@ -27,7 +27,8 @@ export async function POST(request: Request) {
     const [raw, connections, templates] = await Promise.all([fetchCatalogRaw(apiKey), fetchConnections(apiKey), fetchTemplates(apiKey)]);
     const loopfourMs = performance.now() - t1;
     const catalog = buildCatalog(raw as Parameters<typeof buildCatalog>[0]);
-    const draft = await plan(description.trim(), catalog, { force, jevKey, templates });
+    const siteUrl = new URL(request.url).origin.replace('http://localhost', 'https://l4-jev-workflow-builder.vercel.app').replace(/:\d+$/, '');
+    const draft = await plan(description.trim(), catalog, { force, jevKey, templates, siteUrl });
     const assembled = assemble(draft, connections);
     return Response.json({
       draft,
