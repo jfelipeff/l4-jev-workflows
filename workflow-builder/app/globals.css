@@ -28,7 +28,9 @@ header h1 { font-size: 28px; line-height: 1.2; margin: 14px 0 8px; letter-spacin
 .repo { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; font-size: 13.5px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; min-width: 0; }
 .repo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .repo:hover { color: var(--text); border-color: var(--accent); }
-.logo { background: #cfcfcf; color: #111; border-radius: 6px; padding: 2px 6px; font-size: 12px; }
+.l4logo { height: 20px; width: auto; display: block; }
+.times { color: var(--muted); }
+.jev { font-size: 18px; line-height: 1; }
 .jev { color: var(--accent); }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
 h2 { font-size: 16px; margin: 0 0 12px; }

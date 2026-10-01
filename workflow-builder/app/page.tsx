@@ -26,8 +26,9 @@ export default function Home() {
       <header>
         <div className="topbar">
           <div className="brand">
-            <span className="logo">L4</span>
-            <span>×</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/loopfour-logo-light.png" alt="Loopfour" width={91} height={20} className="l4logo" />
+            <span className="times">×</span>
             <span className="jev">Jev</span>
           </div>
           <a className="repo" href={REPO_URL} target="_blank" rel="noreferrer" aria-label="Source code on GitHub">
