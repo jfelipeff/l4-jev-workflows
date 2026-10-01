@@ -101,7 +101,7 @@ export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }
     finish(setLlm, (r) => (r.usd as number | null) ?? null)(llmCall);
   }
 
-  const missing = !jevKey ? 'Enter your Jev API key above.' : !apiKey ? 'Enter your Loopfour API key above: the LLM side runs in your workspace.' : null;
+  const missing = !jevKey ? 'Enter your Jev API key in the API keys box.' : !apiKey ? 'Enter your Loopfour API key in the API keys box: the LLM side runs in your workspace.' : null;
   const elapsed = (l: Lane | null) => (l ? (l.end ?? now) - l.start : 0);
   const scale = Math.max(3000, elapsed(jev), elapsed(llm));
   const done = jev?.end && llm?.end && !jev.error && !llm.error;

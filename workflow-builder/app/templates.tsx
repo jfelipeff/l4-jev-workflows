@@ -50,7 +50,7 @@ export function TemplatesPanel({ apiKey, onBuild }: { apiKey: string; onBuild: (
             {busy ? 'Loading…' : 'Load Loopfour templates'}
           </button>
         )}
-        {!apiKey && <p className="hint">Enter your Loopfour API key above.</p>}
+        {!apiKey && <p className="hint">Enter your Loopfour API key in the API keys box.</p>}
         {error && <p className="error">{error}</p>}
         {templates && (
           <div className="checks">

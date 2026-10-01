@@ -109,7 +109,7 @@ export function Builder({ apiKey, jevKey, seed }: { apiKey: string; jevKey: stri
   const usage = plan?.draft.usage;
   const open = assembled?.questions.filter((q) => q.kind !== 'info') ?? [];
   const notes = assembled?.questions.filter((q) => q.kind === 'info') ?? [];
-  const missingKeys = !apiKey ? 'Enter your Loopfour API key above.' : !jevKey ? 'Enter your Jev API key above.' : null;
+  const missingKeys = !apiKey ? 'Enter your Loopfour API key in the API keys box.' : !jevKey ? 'Enter your Jev API key in the API keys box.' : null;
 
   return (
     <>

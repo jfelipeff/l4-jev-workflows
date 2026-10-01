@@ -54,38 +54,42 @@ export const JEV_EXAMPLES: { group: string; items: { prompt: string; steps: stri
 export function JevExamples({ onBuild }: { onBuild: (text: string) => void }) {
   return (
     <section className="card prose" id="jev-workflows">
-      <h2>Workflows that use Jev extraction and classification</h2>
-      <p>
-        Describe a step that extracts fields or sorts a document into labels, and the builder adds a <strong>Jev Extraction</strong> or{' '}
-        <strong>Jev Classification</strong> step: an API Request block that calls this site&apos;s <code>/api/extract</code> or{' '}
-        <code>/api/classify</code> with your Jev key from the workflow secret <code>JEV_API_KEY</code>. No AI Agent, no LLM at run
-        time. These prompts were checked against the live builder:
-      </p>
-      <div className="grid2">
-        {JEV_EXAMPLES.map((g) => (
-          <div key={g.group}>
-            <h3>{g.group}</h3>
-            <div className="examples-list">
-              {g.items.map((e) => (
-                <div key={e.prompt} className="tile">
-                  <p className="prompt">“{e.prompt}”</p>
-                  <p className="steps">
-                    {e.steps.map((s, i) => (
-                      <span key={s + i}>
-                        {i > 0 && ' → '}
-                        <span className={s.startsWith('Jev') ? 'jevstep' : undefined}>{s}</span>
-                      </span>
-                    ))}
-                  </p>
-                  <button className="secondary" onClick={() => onBuild(e.prompt)}>
-                    Build it
-                  </button>
-                </div>
-              ))}
+      <details className="fold">
+        <summary>
+          <h2>Workflows that use Jev extraction and classification</h2>
+        </summary>
+        <p>
+          Describe a step that extracts fields or sorts a document into labels, and the builder adds a <strong>Jev Extraction</strong> or{' '}
+          <strong>Jev Classification</strong> step: an API Request block that calls this site&apos;s <code>/api/extract</code> or{' '}
+          <code>/api/classify</code> with your Jev key from the workflow secret <code>JEV_API_KEY</code>. No AI Agent, no LLM at run
+          time. These prompts were checked against the live builder:
+        </p>
+        <div className="grid2">
+          {JEV_EXAMPLES.map((g) => (
+            <div key={g.group}>
+              <h3>{g.group}</h3>
+              <div className="examples-list">
+                {g.items.map((e) => (
+                  <div key={e.prompt} className="tile">
+                    <p className="prompt">“{e.prompt}”</p>
+                    <p className="steps">
+                      {e.steps.map((s, i) => (
+                        <span key={s + i}>
+                          {i > 0 && ' → '}
+                          <span className={s.startsWith('Jev') ? 'jevstep' : undefined}>{s}</span>
+                        </span>
+                      ))}
+                    </p>
+                    <button className="secondary" onClick={() => onBuild(e.prompt)}>
+                      Build it
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </details>
     </section>
   );
 }

@@ -25,7 +25,7 @@ function CascadeToggle({ on, set, apiKey }: { on: boolean; set: (v: boolean) => 
     <div className="checks">
       <label title="Uses your Loopfour key: runs Loopfour's claude-opus-5 as an agent in your workspace">
         <input type="checkbox" checked={on && !!apiKey} disabled={!apiKey} onChange={(e) => set(e.target.checked)} /> Send only uncertain answers to
-        an LLM (Loopfour&apos;s claude-opus-5); Jev must confirm its answer{!apiKey && ' (enter your Loopfour key above)'}
+        an LLM (Loopfour&apos;s claude-opus-5); Jev must confirm its answer{!apiKey && ' (enter your Loopfour key in the API keys box)'}
       </label>
     </div>
   );
@@ -112,7 +112,7 @@ export function ExtractPanel({ jevKey, apiKey }: { jevKey: string; apiKey: strin
         <button className="primary" disabled={!jevKey || !document || busy} onClick={run}>
           {busy ? 'Jev is extracting…' : 'Extract'}
         </button>
-        {!jevKey && <p className="hint">Enter your Jev API key above.</p>}
+        {!jevKey && <p className="hint">Enter your Jev API key in the API keys box.</p>}
         {error && <p className="error">{error}</p>}
       </section>
 
@@ -202,7 +202,7 @@ export function ClassifyPanel({ jevKey, apiKey }: { jevKey: string; apiKey: stri
         <button className="primary" disabled={!jevKey || !document || busy} onClick={run}>
           {busy ? 'Jev is classifying…' : 'Classify'}
         </button>
-        {!jevKey && <p className="hint">Enter your Jev API key above.</p>}
+        {!jevKey && <p className="hint">Enter your Jev API key in the API keys box.</p>}
         {error && <p className="error">{error}</p>}
       </section>
 

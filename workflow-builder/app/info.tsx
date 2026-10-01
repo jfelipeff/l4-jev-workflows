@@ -49,110 +49,113 @@ export function WhyJev() {
         </figure>
       </div>
 
-      <h3>What this site implements</h3>
-      <div className="grid3">
-        <div className="tile">
-          <strong>Workflow builder</strong>
-          <p>
-            Plain language to a Studio workflow: every part of the description is classified against what each block does, using
-            your workspace&apos;s live block catalog, so actions and fields are never invented; descriptions of Loopfour&apos;s own
-            templates are recreated exactly. Workflows are created through the Loopfour Workflows API.
-          </p>
+      <details className="fold more">
+        <summary>What this site implements, measured results, and what changes for Studio users</summary>
+        <h3>What this site implements</h3>
+        <div className="grid3">
+          <div className="tile">
+            <strong>Workflow builder</strong>
+            <p>
+              Plain language to a Studio workflow: every part of the description is classified against what each block does, using
+              your workspace&apos;s live block catalog, so actions and fields are never invented; descriptions of Loopfour&apos;s own
+              templates are recreated exactly. Workflows are created through the Loopfour Workflows API.
+            </p>
+          </div>
+          <div className="tile">
+            <strong>Extraction</strong>
+            <p>
+              <code>POST /api/extract</code>: a JSON Schema in, JSON out. Values are found in the document and picked by Jev, then copied
+              verbatim, each with its source line and a confidence.
+            </p>
+          </div>
+          <div className="tile">
+            <strong>Classification</strong>
+            <p>
+              <code>POST /api/classify</code>: labels in, the best label (or several) out, with a check that it really applies and a
+              review flag when Jev is unsure.
+            </p>
+          </div>
         </div>
-        <div className="tile">
-          <strong>Extraction</strong>
-          <p>
-            <code>POST /api/extract</code>: a JSON Schema in, JSON out. Values are found in the document and picked by Jev, then copied
-            verbatim, each with its source line and a confidence.
-          </p>
-        </div>
-        <div className="tile">
-          <strong>Classification</strong>
-          <p>
-            <code>POST /api/classify</code>: labels in, the best label (or several) out, with a check that it really applies and a
-            review flag when Jev is unsure.
-          </p>
-        </div>
-      </div>
 
-      <h3>Measured in this project</h3>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th>Jev</th>
-              <th>LLM (claude-opus-5)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Build a workflow from a description (5 test descriptions, same catalog, same scoring)</td>
-              <td>
-                <strong>0.64 s · $0.00042</strong>, 5/5 correct
-              </td>
-              <td>5.52 s · $0.054, 5/5 correct</td>
-            </tr>
-            <tr>
-              <td>Extract 11 billing fields (incl. line items) from the sample order form (3 runs)</td>
-              <td>
-                <strong>0.47 s · $0.00049</strong>, 11/11 correct
-              </td>
-              <td>5.00 s · $0.0154, 11/11 correct</td>
-            </tr>
-            <tr>
-              <td>Classify the 4 sample support tickets into billing / technical / sales (2 runs each)</td>
-              <td>
-                <strong>0.20 s · $0.000025</strong>, 8/8 correct
-              </td>
-              <td>2.85 s · $0.0041, 8/8 correct</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p className="hint">
-        Each row ran the same inputs through Jev and through a claude-opus-5 agent on Loopfour, scored the same way, with wall-clock
-        times and the cost Loopfour reports. Jev was 8.6× faster and 128× cheaper building workflows, 10.6× faster and 32× cheaper
-        extracting, and 14.4× faster and 163× cheaper classifying, with the same accuracy. Studio&apos;s Copilot took 11 s to set up
-        the billing-exceptions template. Scripts: <code>npm run compare</code> and <code>npm run compare:functions</code>.
-      </p>
+        <h3>Measured in this project</h3>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Jev</th>
+                <th>LLM (claude-opus-5)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Build a workflow from a description (5 test descriptions, same catalog, same scoring)</td>
+                <td>
+                  <strong>0.64 s · $0.00042</strong>, 5/5 correct
+                </td>
+                <td>5.52 s · $0.054, 5/5 correct</td>
+              </tr>
+              <tr>
+                <td>Extract 11 billing fields (incl. line items) from the sample order form (3 runs)</td>
+                <td>
+                  <strong>0.47 s · $0.00049</strong>, 11/11 correct
+                </td>
+                <td>5.00 s · $0.0154, 11/11 correct</td>
+              </tr>
+              <tr>
+                <td>Classify the 4 sample support tickets into billing / technical / sales (2 runs each)</td>
+                <td>
+                  <strong>0.20 s · $0.000025</strong>, 8/8 correct
+                </td>
+                <td>2.85 s · $0.0041, 8/8 correct</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="hint">
+          Each row ran the same inputs through Jev and through a claude-opus-5 agent on Loopfour, scored the same way, with wall-clock
+          times and the cost Loopfour reports. Jev was 8.6× faster and 128× cheaper building workflows, 10.6× faster and 32× cheaper
+          extracting, and 14.4× faster and 163× cheaper classifying, with the same accuracy. Studio&apos;s Copilot took 11 s to set up
+          the billing-exceptions template. Scripts: <code>npm run compare</code> and <code>npm run compare:functions</code>.
+        </p>
 
-      <h3>What changes for Studio users</h3>
-      <ul>
-        <li>
-          <strong>Speed:</strong> workflows and extractions in under a second instead of several seconds per LLM call.
-        </li>
-        <li>
-          <strong>Cost:</strong> fractions of a cent per document, so every invoice and contract can be checked, not a sample.
-        </li>
-        <li>
-          <strong>Nothing invented:</strong> Jev chooses among values found in the document (or blocks in the catalog) and code
-          copies them, so a total, a date or an action name cannot be hallucinated. Each value keeps its source for the audit trail.
-        </li>
-        <li>
-          <strong>Confidence you can route on:</strong> low-confidence fields go to Studio&apos;s Approval block; the rest flows
-          straight through.
-        </li>
-        <li>
-          <strong>An LLM only for what Jev cannot settle (optional):</strong> following the{' '}
-          <a href="https://docs.typesafe.ai/cookbooks/sde_cascade" target="_blank" rel="noreferrer">
-            cascade
-          </a>{' '}
-          pattern, only answers Jev is unsure about go to Loopfour&apos;s own claude-opus-5, and its answer is kept only if it quotes
-          the document and Jev confirms it. In our tests a memo with &quot;the 1st of Nov. &apos;26&quot; escalated just that one
-          field (2.4 s, $0.006) while a fully readable contract made no LLM call at all; values that are not in the document stay
-          flagged instead of being invented.
-        </li>
-        <li>
-          <strong>LLMs where they help:</strong> the AI Agent block stays for open-ended work (summaries, anomaly hunting); the
-          builder only uses it when a step needs it.
-        </li>
-      </ul>
-      <p>
-        Today these functions plug into any workflow through an <strong>API Request</strong> block (the builder sets it up, with your
-        Jev key stored as the workflow secret <code>JEV_API_KEY</code>). Natively, they would be Studio blocks, and the Copilot could
-        call the same block classifier before writing anything.
-      </p>
+        <h3>What changes for Studio users</h3>
+        <ul>
+          <li>
+            <strong>Speed:</strong> workflows and extractions in under a second instead of several seconds per LLM call.
+          </li>
+          <li>
+            <strong>Cost:</strong> fractions of a cent per document, so every invoice and contract can be checked, not a sample.
+          </li>
+          <li>
+            <strong>Nothing invented:</strong> Jev chooses among values found in the document (or blocks in the catalog) and code
+            copies them, so a total, a date or an action name cannot be hallucinated. Each value keeps its source for the audit trail.
+          </li>
+          <li>
+            <strong>Confidence you can route on:</strong> low-confidence fields go to Studio&apos;s Approval block; the rest flows
+            straight through.
+          </li>
+          <li>
+            <strong>An LLM only for what Jev cannot settle (optional):</strong> following the{' '}
+            <a href="https://docs.typesafe.ai/cookbooks/sde_cascade" target="_blank" rel="noreferrer">
+              cascade
+            </a>{' '}
+            pattern, only answers Jev is unsure about go to Loopfour&apos;s own claude-opus-5, and its answer is kept only if it quotes
+            the document and Jev confirms it. In our tests a memo with &quot;the 1st of Nov. &apos;26&quot; escalated just that one
+            field (2.4 s, $0.006) while a fully readable contract made no LLM call at all; values that are not in the document stay
+            flagged instead of being invented.
+          </li>
+          <li>
+            <strong>LLMs where they help:</strong> the AI Agent block stays for open-ended work (summaries, anomaly hunting); the
+            builder only uses it when a step needs it.
+          </li>
+        </ul>
+        <p>
+          Today these functions plug into any workflow through an <strong>API Request</strong> block (the builder sets it up, with your
+          Jev key stored as the workflow secret <code>JEV_API_KEY</code>). Natively, they would be Studio blocks, and the Copilot could
+          call the same block classifier before writing anything.
+        </p>
+      </details>
     </section>
   );
 }
@@ -263,72 +266,76 @@ const BY_CASE: [string, string][] = [
 export function WhereElse() {
   return (
     <section className="card prose" id="where-else">
-      <h2>Other parts of Loopfour where Jev works great</h2>
-      <p>
-        Loopfour&apos;s rule is deterministic workflows with AI only where it helps, &quot;scoped and confidence-gated&quot;. Jev is
-        that kind of AI: it answers a typed question with a calibrated probability and never writes free text. Going through all{' '}
-        <a href={`${L4}/use-cases`} target="_blank" rel="noreferrer">
-          19 case studies
-        </a>{' '}
-        and the four solution pages, the same few judgments keep coming back:
-      </p>
-      <div className="grid2">
-        {AREAS.map((a) => (
-          <div key={a.title} className="tile">
-            <strong>{a.title}</strong>
-            {a.solution && (
-              <a className="tag" href={`${L4}/${a.solution[1]}`} target="_blank" rel="noreferrer">
-                {a.solution[0]}
-              </a>
-            )}
-            <p>
-              <em>Today:</em> {a.today}
-            </p>
-            <p>
-              <em>With Jev:</em> {a.jev}
-            </p>
-            <p className="cases">
-              {a.cases.map((k, i) => (
-                <span key={k}>
-                  {i > 0 && ' · '}
-                  <CaseLink k={k} />
-                </span>
-              ))}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <h3>What stays code</h3>
-      <p>
-        Rent and split calculations, ASC 606 schedules, four-way-match math, dunning schedules, ACH and postings stay deterministic
-        rules, as they are today. Jev only answers the questions those rules need from text (which value, which invoice, which
-        entity, which owner), and each answer is logged with its probability like any other step, so the audit trail Loopfour sells
-        on stays intact.
-      </p>
-
-      <details>
-        <summary>Case by case: all 19 Loopfour case studies</summary>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Case study</th>
-                <th>Where Jev fits</th>
-              </tr>
-            </thead>
-            <tbody>
-              {BY_CASE.map(([k, text]) => (
-                <tr key={k}>
-                  <td>
+      <details className="fold">
+        <summary>
+          <h2>Other parts of Loopfour where Jev works great</h2>
+        </summary>
+        <p>
+          Loopfour&apos;s rule is deterministic workflows with AI only where it helps, &quot;scoped and confidence-gated&quot;. Jev is
+          that kind of AI: it answers a typed question with a calibrated probability and never writes free text. Going through all{' '}
+          <a href={`${L4}/use-cases`} target="_blank" rel="noreferrer">
+            19 case studies
+          </a>{' '}
+          and the four solution pages, the same few judgments keep coming back:
+        </p>
+        <div className="grid2">
+          {AREAS.map((a) => (
+            <div key={a.title} className="tile">
+              <strong>{a.title}</strong>
+              {a.solution && (
+                <a className="tag" href={`${L4}/${a.solution[1]}`} target="_blank" rel="noreferrer">
+                  {a.solution[0]}
+                </a>
+              )}
+              <p>
+                <em>Today:</em> {a.today}
+              </p>
+              <p>
+                <em>With Jev:</em> {a.jev}
+              </p>
+              <p className="cases">
+                {a.cases.map((k, i) => (
+                  <span key={k}>
+                    {i > 0 && ' · '}
                     <CaseLink k={k} />
-                  </td>
-                  <td>{text}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </span>
+                ))}
+              </p>
+            </div>
+          ))}
         </div>
+
+        <h3>What stays code</h3>
+        <p>
+          Rent and split calculations, ASC 606 schedules, four-way-match math, dunning schedules, ACH and postings stay deterministic
+          rules, as they are today. Jev only answers the questions those rules need from text (which value, which invoice, which
+          entity, which owner), and each answer is logged with its probability like any other step, so the audit trail Loopfour sells
+          on stays intact.
+        </p>
+
+        <details>
+          <summary>Case by case: all 19 Loopfour case studies</summary>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Case study</th>
+                  <th>Where Jev fits</th>
+                </tr>
+              </thead>
+              <tbody>
+                {BY_CASE.map(([k, text]) => (
+                  <tr key={k}>
+                    <td>
+                      <CaseLink k={k} />
+                    </td>
+                    <td>{text}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
       </details>
     </section>
   );
