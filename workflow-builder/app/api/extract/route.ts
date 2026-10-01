@@ -30,7 +30,9 @@ export async function POST(request: Request) {
     const specs = readSchema(body.schema ?? body.outputSchema ?? body.fields);
     if (!specs.length) return Response.json({ ok: false, error: 'Send "schema" (JSON Schema with properties) or "fields" (list of names).' }, { status: 400 });
     if (specs.length > 40) return Response.json({ ok: false, error: 'At most 40 fields per request.' }, { status: 400 });
-    const result = await extract(text, String(body.instructions ?? body.prompt ?? ''), specs, jevKey);
+    // Optional cascade: with a Loopfour key (header x-loopfour-key), uncertain fields go to claude-opus-5.
+    const escalateWith = request.headers.get('x-loopfour-key') ?? undefined;
+    const result = await extract(text, String(body.instructions ?? body.prompt ?? ''), specs, jevKey, { escalateWith });
     return Response.json({ ok: true, ...result, ...(truncated && { truncated: true }), total_ms: Math.round(performance.now() - t0) });
   } catch (err) {
     return errorResponse(err);

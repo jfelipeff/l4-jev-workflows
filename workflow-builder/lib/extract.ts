@@ -14,6 +14,7 @@
 
 import { find, phrases, type Candidate } from './finders.ts';
 import { tagLines, taggedText, type Line } from './document.ts';
+import { escalateFields, type EscalationReport } from './escalate.ts';
 import { askJev, choice, JEV_PRICE_PER_TOKEN, noul, type Question } from './jev.ts';
 
 export const REVIEW_BELOW = 0.6;
@@ -22,11 +23,12 @@ const MAX_ROW_LINES = 120;
 
 type Kind = 'string' | 'number' | 'integer' | 'boolean' | 'date' | 'email' | 'url' | 'phone' | 'enum' | 'list' | 'rows';
 export type FieldSpec = { name: string; kind: Kind; description: string; required: boolean; enum?: string[]; items?: FieldSpec[] };
-export type FieldResult = { value: unknown; confidence: number | null; source: string | null; review: boolean };
+export type FieldResult = { value: unknown; confidence: number | null; source: string | null; review: boolean; by?: 'jev' | 'llm+jev' };
 export type Extraction = {
   output: Record<string, unknown>;
   fields: Record<string, FieldResult>;
   needs_review: string[];
+  escalation?: EscalationReport;
   usage: { requests: number; questions: number; jev_ms: number; input_tokens: number; usd: number; model: string };
 };
 
@@ -67,6 +69,22 @@ export function readSchema(schema: unknown): FieldSpec[] {
   });
 }
 
+/** A month/day/week field reads a duration in its own unit: "three years" -> 36 for term_months. */
+function inUnitsOf(name: string, cands: Candidate[]): Candidate[] {
+  const want = /month/i.test(name) ? 'month' : /week/i.test(name) ? 'week' : /day/i.test(name) ? 'day' : /year/i.test(name) ? 'year' : null;
+  if (!want) return cands;
+  const days: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
+  const out = [...cands];
+  for (const c of cands) {
+    const unit = c.raw.toLowerCase().match(/\b(day|week|month|year)s?\b/)?.[1];
+    if (!unit || unit === want || typeof c.value !== 'number') continue;
+    const converted =
+      want === 'month' && unit === 'year' ? c.value * 12 : want === 'year' && unit === 'month' ? c.value / 12 : Math.round((c.value * days[unit]) / days[want]);
+    if (!out.some((x) => x.value === converted)) out.push({ ...c, value: converted, raw: `${c.raw} (= ${converted} ${want}s)` });
+  }
+  return out;
+}
+
 const options = (cands: Candidate[]) => Object.fromEntries(cands.slice(0, 254).map((c) => [String(c.value), `${c.raw} (in: "…${c.context}…")`]));
 
 export async function extract(
@@ -74,6 +92,7 @@ export async function extract(
   instructions: string,
   specs: FieldSpec[],
   jevKey?: string,
+  opts: { escalateWith?: string } = {}, // a Loopfour key: send only the uncertain fields to claude-opus-5
 ): Promise<Extraction> {
   const usage = { requests: 0, questions: 0, jev_ms: 0, input_tokens: 0, usd: 0, model: '' };
   const ask = async (state: unknown, qs: Record<string, Question>) => {
@@ -101,7 +120,7 @@ export async function extract(
       q1[k] = { type: 'noul', instructions: { question: 'According to `document`, is this field true?', ...ask1(f) } };
     } else if (['date', 'number', 'integer', 'email', 'url', 'phone'].includes(f.kind)) {
       const kind = f.kind === 'number' || f.kind === 'integer' ? 'numeric' : (f.kind as 'date' | 'email' | 'url' | 'phone');
-      cands[f.name] = find(kind, text);
+      cands[f.name] = kind === 'numeric' ? inUnitsOf(f.name, find(kind, text)) : find(kind, text);
       if (cands[f.name].length) {
         q1[k] = { type: 'choice', instructions: { question: 'Which of these values in `document` is this field?', ...ask1(f) }, criteria: { ...options(cands[f.name]), [NONE]: 'none of these: the document does not state it' } };
       }
@@ -226,7 +245,30 @@ export async function extract(
     output[f.name] = value;
     fields[f.name] = { value, confidence, source, review };
   }
+  for (const r of Object.values(fields)) r.by = 'jev';
+
+  // Cascade: only fields Jev could not settle go to the LLM (required but empty, unsure, or no candidate
+  // of the right type in the text); an LLM value replaces them only if Jev confirms it.
+  let escalation: EscalationReport | undefined;
+  if (opts.escalateWith && jevKey) {
+    const unsure = specs.filter((f) => {
+      const r = fields[f.name];
+      if (f.kind === 'list' || f.kind === 'rows') return false;
+      const empty = r.value === null;
+      return (empty && (f.required || r.confidence === null)) || (!empty && (r.confidence ?? 0) < REVIEW_BELOW);
+    });
+    if (unsure.length) {
+      const { values, report } = await escalateFields(opts.escalateWith, jevKey, text, instructions, unsure);
+      escalation = report;
+      for (const [name, v] of Object.entries(values)) {
+        const spec = specs.find((s) => s.name === name)!;
+        const value = spec.kind === 'number' || spec.kind === 'integer' ? Number(v.value) : v.value;
+        output[name] = value;
+        fields[name] = { value, confidence: v.p, source: v.quote, review: false, by: 'llm+jev' };
+      }
+    }
+  }
   usage.usd = usage.input_tokens * JEV_PRICE_PER_TOKEN;
   usage.jev_ms = Math.round(usage.jev_ms);
-  return { output, fields, needs_review: Object.entries(fields).filter(([, r]) => r.review).map(([n]) => n), usage };
+  return { output, fields, needs_review: Object.entries(fields).filter(([, r]) => r.review).map(([n]) => n), ...(escalation && { escalation }), usage };
 }

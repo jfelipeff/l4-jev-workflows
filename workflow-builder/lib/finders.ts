@@ -23,7 +23,7 @@ const PATTERNS: Record<string, RegExp> = {
   email: /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g,
   url: /https?:\/\/[^\s"'<>)]+/g,
   phone: /(?<!\w)\+?\(?\d{1,3}\)?[\s.-]?\(?\d{2,4}\)?[\s.-]\d{3,4}[\s.-]?\d{3,4}(?!\w)/g,
-  duration: /\b(?:[a-z]+(?:-[a-z]+)?\s+)?\(?\d{1,3}\)?[\s-]+(?:days?|weeks?|months?|years?)\b/gi,
+  duration: /\b(?:[a-z]+(?:-[a-z]+)?\s+)?\(?\d{1,3}\)?[\s-]+(?:days?|weeks?|months?|years?)\b|\b(?:(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|eighteen|twenty|thirty|forty|fifty|sixty|ninety)[\s-]?)+(?:days?|weeks?|months?|years?)\b/gi,
   code: /\b(?=[A-Z0-9-]*\d)(?=[A-Z0-9-]*[A-Z])[A-Z0-9]+(?:-[A-Z0-9]+)+\b|#\s?\d{3,}\b/g, // INV-2026-0417, #4471
 };
 
@@ -50,7 +50,38 @@ export function toIsoDate(raw: string): string | null {
   return date.getUTCMonth() === mo - 1 && date.getUTCDate() === d ? date.toISOString().slice(0, 10) : null;
 }
 
-const WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12, fifteen: 15, thirty: 30, sixty: 60, ninety: 90 };
+const SMALL: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30,
+  forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+const SCALES: Record<string, number> = { hundred: 100, thousand: 1e3, million: 1e6, billion: 1e9 };
+const NUMBER_WORDS = `(?:${[...Object.keys(SMALL), ...Object.keys(SCALES), 'and', 'a'].join('|')})`;
+// "seventy-two thousand", "nine thousand five hundred", "one and a half"
+const WORD_NUMBER = new RegExp(String.raw`\b(?:(?:${NUMBER_WORDS})[\s-]+)*(?:${Object.keys(SMALL).join('|')}|${Object.keys(SCALES).join('|')})\b(?:\s+and\s+a\s+half)?`, 'gi');
+
+/** "seventy-two thousand" -> 72000, "nine thousand five hundred" -> 9500, "one and a half" -> 1.5 */
+export function wordsToNumber(phrase: string): number | null {
+  let total = 0;
+  let current = 0;
+  let seen = false;
+  for (const w of phrase.toLowerCase().split(/[\s-]+/)) {
+    if (w in SMALL) {
+      current += SMALL[w];
+      seen = true;
+    } else if (w === 'hundred') {
+      current = (current || 1) * 100;
+      seen = true;
+    } else if (w in SCALES) {
+      total += (current || 1) * SCALES[w];
+      current = 0;
+      seen = true;
+    } else if (w === 'half') {
+      current += 0.5;
+    } else if (!['and', 'a'].includes(w)) return null;
+  }
+  return seen ? total + current : null;
+}
 
 /** Candidates of one kind, deduplicated by normalized value (first contexts kept). */
 export function find(kind: keyof typeof PATTERNS | 'numeric', text: string, limit = 120): Candidate[] {
@@ -62,8 +93,8 @@ export function find(kind: keyof typeof PATTERNS | 'numeric', text: string, limi
       let value: string | number | null = raw;
       if (k === 'money' || k === 'percent' || k === 'number') value = toNumber(raw);
       if (k === 'duration') {
-        const n = raw.match(/\d+/)?.[0] ?? raw.toLowerCase().match(/^([a-z]+)/)?.[1];
-        value = n ? (Number(n) || WORDS[n] || null) : null;
+        const digits = raw.match(/\d+/)?.[0];
+        value = digits ? Number(digits) : wordsToNumber(raw.replace(/\(.*?\)|\b(?:days?|weeks?|months?|years?)\b/gi, '').trim());
       }
       if (k === 'date') value = toIsoDate(raw);
       if (k === 'email') value = raw.toLowerCase().replace(/\.$/, '');
@@ -75,6 +106,30 @@ export function find(kind: keyof typeof PATTERNS | 'numeric', text: string, limi
       seen.set(key, { value, raw, context });
       if (seen.size >= limit) break;
     }
+  }
+  // Numbers written in words ("seventy-two thousand US dollars"): numeric candidates too.
+  if (kind === 'numeric') {
+    // "72 grand", "72 thousand", "1.2 million", "72k" without a currency sign
+    for (const m of text.matchAll(/\b(\d+(?:\.\d+)?)\s?(grand|thousand|million|billion|k|m|bn)\b/gi)) {
+      const scale: Record<string, number> = { grand: 1e3, thousand: 1e3, k: 1e3, million: 1e6, m: 1e6, billion: 1e9, bn: 1e9 };
+      const value = Number(m[1]) * scale[m[2].toLowerCase()];
+      if (seen.has(String(value))) continue;
+      const at = m.index ?? 0;
+      seen.set(String(value), { value, raw: m[0], context: text.slice(Math.max(0, at - 50), at + m[0].length + 50).replace(/\s+/g, ' ').trim() });
+    }
+    for (const m of text.matchAll(WORD_NUMBER)) {
+      const raw = m[0].trim();
+      const value = wordsToNumber(raw);
+      if (value === null || value === 0 || /^(a|and)$/i.test(raw) || seen.has(String(value))) continue;
+      const at = m.index ?? 0;
+      const tail = text.slice(at + raw.length, at + raw.length + 25);
+      const unit = tail.match(/^\s*(?:US\s+)?(dollars|euros|pounds|percent|%|days?|weeks?|months?|years?)/i)?.[0] ?? '';
+      const context = text.slice(Math.max(0, at - 50), at + raw.length + 50).replace(/\s+/g, ' ').trim();
+      seen.set(String(value), { value, raw: `${raw}${unit}`, context });
+    }
+    // "due on receipt" / "payable immediately" = 0 days
+    const now = text.match(/\b(?:due|payable)\s+(?:up)?on\s+receipt\b|\b(?:due|payable)\s+immediately\b/i);
+    if (now && !seen.has('0')) seen.set('0', { value: 0, raw: now[0], context: now[0] });
   }
   return [...seen.values()];
 }

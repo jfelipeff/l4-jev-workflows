@@ -50,13 +50,39 @@ technical: bugs, errors, outages, login problems
 sales: pricing, quotes, demos, new seats`;
 
 type Usage = { requests: number; questions: number; jev_ms: number; input_tokens: number; usd: number };
+type Escalation = { model: string; escalated: string[]; accepted: string[]; rejected: { name: string; reason: string }[]; llm_ms: number; llm_usd: number };
 
-async function post(path: string, jevKey: string, body: unknown) {
+async function post(path: string, jevKey: string, body: unknown, loopfourKey?: string) {
   const t0 = performance.now();
-  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-jev-key': jevKey }, body: JSON.stringify(body) });
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'x-jev-key': jevKey };
+  if (loopfourKey) headers['x-loopfour-key'] = loopfourKey; // opt-in cascade
+  const res = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
   const json = await res.json();
   if (!res.ok || !json.ok) throw new Error(json.error ?? `Error ${res.status}`);
   return { json, wall: performance.now() - t0 };
+}
+
+/** Cascade toggle: only answers Jev is unsure about go to an LLM, and Jev must confirm them. */
+function CascadeToggle({ on, set, apiKey }: { on: boolean; set: (v: boolean) => void; apiKey: string }) {
+  return (
+    <div className="checks">
+      <label title="Uses your Loopfour key: runs Loopfour's claude-opus-5 as an agent in your workspace">
+        <input type="checkbox" checked={on && !!apiKey} disabled={!apiKey} onChange={(e) => set(e.target.checked)} /> Send only uncertain answers to
+        an LLM (Loopfour&apos;s claude-opus-5); Jev must confirm its answer{!apiKey && ' (enter your Loopfour key above)'}
+      </label>
+    </div>
+  );
+}
+
+function EscalationNote({ e }: { e?: Escalation }) {
+  if (!e) return <p className="hint">No LLM call: Jev settled every answer.</p>;
+  return (
+    <p className="hint">
+      LLM fallback ({e.model}) for {e.escalated.join(', ')}: {e.llm_ms} ms, ${e.llm_usd.toFixed(4)}.{' '}
+      {e.accepted.length ? `Accepted after Jev confirmed: ${e.accepted.join(', ')}. ` : ''}
+      {e.rejected.length ? `Still for review: ${e.rejected.map((r) => `${r.name} (${r.reason})`).join('; ')}.` : ''}
+    </p>
+  );
 }
 
 function UsageRow({ usage, wall }: { usage: Usage; wall: number }) {
@@ -66,7 +92,6 @@ function UsageRow({ usage, wall }: { usage: Usage; wall: number }) {
       <Metric label="End to end" value={`${(wall / 1000).toFixed(2)} s`} />
       <Metric label="Jev cost" value={`$${usage.usd.toFixed(6)}`} />
       <Metric label="Requests · questions" value={`${usage.requests} · ${usage.questions}`} />
-      <Metric label="LLM calls" value="0" />
     </section>
   );
 }
@@ -85,13 +110,14 @@ function studioConfig(endpoint: 'extract' | 'classify', body: Record<string, unk
   };
 }
 
-export function ExtractPanel({ jevKey }: { jevKey: string }) {
+export function ExtractPanel({ jevKey, apiKey }: { jevKey: string; apiKey: string }) {
+  const [cascade, setCascade] = useState(false);
   const [document, setDocument] = useState(SAMPLE_CONTRACT);
   const [instructions, setInstructions] = useState('Extract the billing terms from this order form.');
   const [schema, setSchema] = useState(SAMPLE_SCHEMA);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ json: { output: Record<string, unknown>; fields: Record<string, { value: unknown; confidence: number | null; source: string | null; review: boolean }>; needs_review: string[]; usage: Usage }; wall: number } | null>(null);
+  const [result, setResult] = useState<{ json: { output: Record<string, unknown>; fields: Record<string, { value: unknown; confidence: number | null; source: string | null; review: boolean; by?: string }>; needs_review: string[]; escalation?: Escalation; usage: Usage }; wall: number } | null>(null);
 
   let parsed: unknown = null;
   try {
@@ -104,7 +130,7 @@ export function ExtractPanel({ jevKey }: { jevKey: string }) {
     setBusy(true);
     setError(null);
     try {
-      setResult(await post('/api/extract', jevKey, { document, instructions, schema: parsed }));
+      setResult(await post('/api/extract', jevKey, { document, instructions, schema: parsed }, cascade && apiKey ? apiKey : undefined));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -125,6 +151,7 @@ export function ExtractPanel({ jevKey }: { jevKey: string }) {
         <input id="ex-ins" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
         <label htmlFor="ex-schema">Output schema (JSON Schema, or a comma-separated list of field names)</label>
         <textarea id="ex-schema" className="mono" rows={9} value={schema} onChange={(e) => setSchema(e.target.value)} />
+        <CascadeToggle on={cascade} set={setCascade} apiKey={apiKey} />
         <button className="primary" disabled={!jevKey || !document || busy} onClick={run}>
           {busy ? 'Jev is extracting…' : 'Extract'}
         </button>
@@ -137,12 +164,14 @@ export function ExtractPanel({ jevKey }: { jevKey: string }) {
           <UsageRow usage={result.json.usage} wall={result.wall} />
           <section className="card">
             <h2>Result{result.json.needs_review.length ? ` · ${result.json.needs_review.length} to review` : ''}</h2>
+            {cascade && <EscalationNote e={result.json.escalation} />}
             <ol className="flow">
               {Object.entries(result.json.fields).map(([name, f]) => (
                 <li key={name} className="node">
                   <span className="kind">{name}</span>
                   <strong className="value">{typeof f.value === 'string' ? f.value : JSON.stringify(f.value)}</strong>
                   {f.source && <span className="detail">from: {f.source}</span>}
+                  {f.by === 'llm+jev' && <span className="branch then">LLM answer, confirmed by Jev</span>}
                   {f.review && <span className="branch else">review</span>}
                   <Badge c={f.confidence} />
                 </li>
@@ -159,7 +188,8 @@ export function ExtractPanel({ jevKey }: { jevKey: string }) {
   );
 }
 
-export function ClassifyPanel({ jevKey }: { jevKey: string }) {
+export function ClassifyPanel({ jevKey, apiKey }: { jevKey: string; apiKey: string }) {
+  const [cascade, setCascade] = useState(false);
   const [document, setDocument] = useState(SAMPLE_TICKETS[0]);
   const [instructions, setInstructions] = useState('Route this support ticket to the right team.');
   const [labels, setLabels] = useState(SAMPLE_LABELS);
@@ -167,13 +197,13 @@ export function ClassifyPanel({ jevKey }: { jevKey: string }) {
   const [allowNone, setAllowNone] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ json: { label: string | null; labels: string[]; confidence: number | null; probabilities: Record<string, number>; applies: Record<string, number>; needs_review: boolean; usage: Usage }; wall: number } | null>(null);
+  const [result, setResult] = useState<{ json: { label: string | null; labels: string[]; confidence: number | null; probabilities: Record<string, number>; applies: Record<string, number>; needs_review: boolean; by?: string; escalation?: Escalation; usage: Usage }; wall: number } | null>(null);
 
   async function run() {
     setBusy(true);
     setError(null);
     try {
-      setResult(await post('/api/classify', jevKey, { document, instructions, labels, multi_label: multi, allow_none: allowNone }));
+      setResult(await post('/api/classify', jevKey, { document, instructions, labels, multi_label: multi, allow_none: allowNone }, cascade && apiKey ? apiKey : undefined));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -211,6 +241,7 @@ export function ClassifyPanel({ jevKey }: { jevKey: string }) {
             fits&quot;
           </label>
         </div>
+        <CascadeToggle on={cascade} set={setCascade} apiKey={apiKey} />
         <button className="primary" disabled={!jevKey || !document || busy} onClick={run}>
           {busy ? 'Jev is classifying…' : 'Classify'}
         </button>
@@ -225,7 +256,9 @@ export function ClassifyPanel({ jevKey }: { jevKey: string }) {
             <h2>
               {result.json.labels.length ? result.json.labels.join(' + ') : 'No label fits'}
               {result.json.needs_review && <span className="branch else"> · review</span>}
+              {result.json.by === 'llm+jev' && <span className="branch then"> · LLM answer, confirmed by Jev</span>}
             </h2>
+            {cascade && <EscalationNote e={result.json.escalation} />}
             <div className="bars">
               {Object.entries(scores)
                 .sort((a, b) => b[1] - a[1])

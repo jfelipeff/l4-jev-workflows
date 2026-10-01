@@ -32,6 +32,21 @@ Use an **API Request** block (the builder creates it for you):
 needs a secret `JEV_API_KEY` (Loopfour checks it before the run starts); the builder stores it when your
 Loopfour key has the `secrets:write` scope, otherwise add it in Studio.
 
+### Optional LLM fallback (cascade)
+
+Send the header `x-loopfour-key` and only the answers Jev could not settle go to an LLM, following
+TypeSafe's [SDE cascade](https://docs.typesafe.ai/cookbooks/sde_cascade): a required field that came back
+empty, a field under 60% confidence, a field whose type no finder recognized in the text, or a flagged
+classification. The LLM is Loopfour's own claude-opus-5, run as an agent in the caller's workspace
+(`lib/escalate.ts`). Its answer is kept only if its quote appears verbatim in the document **and** Jev
+confirms the quote states that value (≥ 70%); otherwise the field stays `review: true`. Measured:
+
+| Document | LLM calls | Time | Cost |
+|---|---|---|---|
+| Messy contract (amounts in words, "three years", "due on receipt") | 0 (Jev got 7/7 after the finders learned number words) | 0.45 s | $0.0002 |
+| Memo with "the 1st of Nov. '26" | 1, for that field only; accepted (Jev 98%) | 4.3 s | $0.006 |
+| Fields that are not in the document | 1; nothing invented, both stay for review | 4.0 s | ~$0.006 |
+
 Measured: 11 billing fields from an order form in 0.5–0.75 s for $0.0007; a support ticket classified in
 0.18–0.30 s for $0.000024.
 

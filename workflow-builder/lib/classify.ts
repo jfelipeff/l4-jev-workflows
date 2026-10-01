@@ -4,6 +4,7 @@
 //                 that checks the winner really applies (so "none fits" is possible)
 //   multi label   one yes/no per label; 0.3-0.7 is "uncertain" and goes to review
 
+import { escalateLabel, type EscalationReport } from './escalate.ts';
 import { askJev, choice, JEV_PRICE_PER_TOKEN, noul, type Question } from './jev.ts';
 
 export const REVIEW_BELOW = 0.6;
@@ -16,6 +17,8 @@ export type Classification = {
   applies: Record<string, number>; // P(label applies) for every label
   needs_review: boolean;
   uncertain: string[];
+  by?: 'jev' | 'llm+jev';
+  escalation?: EscalationReport;
   usage: { requests: number; questions: number; jev_ms: number; input_tokens: number; usd: number; model: string };
 };
 
@@ -42,7 +45,7 @@ export async function classify(
   text: string,
   instructions: string,
   labels: Label[],
-  opts: { multi?: boolean; allowNone?: boolean; jevKey?: string } = {},
+  opts: { multi?: boolean; allowNone?: boolean; jevKey?: string; escalateWith?: string } = {},
 ): Promise<Classification> {
   const task = instructions || 'Classify `document`.';
   const questions: Record<string, Question> = {};
@@ -92,14 +95,26 @@ export async function classify(
   // The Choice compares labels; the yes/no checks the winner applies at all.
   const verified = winner ? applies[winner] >= 0.5 : false;
   const label = winner && (verified || !opts.allowNone) ? winner : null;
+  const needsReview = !label || (c?.confidence ?? 0) < REVIEW_BELOW || !verified;
+  // Cascade: only a classification Jev flagged goes to the LLM; its label is kept if Jev does not reject it.
+  // "No label fits" with every label clearly rejected is a confident answer, not an uncertain one.
+  const clearNone = !label && Object.values(applies).every((p) => p < 0.3);
+  if (needsReview && !clearNone && opts.escalateWith) {
+    const { label: llmLabel, report } = await escalateLabel(opts.escalateWith, text, task, labels, applies);
+    if (llmLabel) {
+      return { label: llmLabel, labels: [llmLabel], confidence: applies[llmLabel], probabilities: c?.probabilities ?? {}, applies, needs_review: false, uncertain, by: 'llm+jev', escalation: report, usage };
+    }
+    return { label, labels: label ? [label] : [], confidence: c?.confidence ?? null, probabilities: c?.probabilities ?? {}, applies, needs_review: true, uncertain, by: 'jev', escalation: report, usage };
+  }
   return {
     label,
     labels: label ? [label] : [],
     confidence: c?.confidence ?? null,
     probabilities: c?.probabilities ?? {},
     applies,
-    needs_review: !label || (c?.confidence ?? 0) < REVIEW_BELOW || !verified,
+    needs_review: needsReview,
     uncertain,
+    by: 'jev',
     usage,
   };
 }

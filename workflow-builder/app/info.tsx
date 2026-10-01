@@ -120,6 +120,16 @@ export function WhyJev() {
           straight through.
         </li>
         <li>
+          <strong>An LLM only for what Jev cannot settle (optional):</strong> following the{' '}
+          <a href="https://docs.typesafe.ai/cookbooks/sde_cascade" target="_blank" rel="noreferrer">
+            cascade
+          </a>{' '}
+          pattern, only answers Jev is unsure about go to Loopfour&apos;s own claude-opus-5, and its answer is kept only if it quotes
+          the document and Jev confirms it. In our tests a memo with &quot;the 1st of Nov. &apos;26&quot; escalated just that one
+          field (2.4 s, $0.006) while a fully readable contract made no LLM call at all; values that are not in the document stay
+          flagged instead of being invented.
+        </li>
+        <li>
           <strong>LLMs where they help:</strong> the AI Agent block stays for open-ended work (summaries, anomaly hunting); the
           builder only uses it when a step needs it.
         </li>

@@ -49,7 +49,7 @@ export default function Home() {
           <div>
             <label htmlFor="key">Loopfour API key</label>
             <input id="key" type="password" autoComplete="off" placeholder="wfk_live_…" value={apiKey} onChange={(e) => setApiKey(e.target.value.trim())} />
-            <p className="hint">Workflow builder only. Needs workflows:read/write, connections:read (and secrets:write to store your Jev key).</p>
+            <p className="hint">For the workflow builder (workflows:read/write, connections:read, secrets:write to store your Jev key) and the optional LLM fallback.</p>
           </div>
           <div>
             <label htmlFor="jev">Jev (TypeSafe) API key</label>
@@ -82,10 +82,10 @@ export default function Home() {
         <Builder apiKey={apiKey} jevKey={jevKey} />
       </div>
       <div hidden={tab !== 'extract'}>
-        <ExtractPanel jevKey={jevKey} />
+        <ExtractPanel jevKey={jevKey} apiKey={apiKey} />
       </div>
       <div hidden={tab !== 'classify'}>
-        <ClassifyPanel jevKey={jevKey} />
+        <ClassifyPanel jevKey={jevKey} apiKey={apiKey} />
       </div>
 
       <WhyJev />

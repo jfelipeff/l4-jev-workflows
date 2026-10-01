@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       multi: !!(body.multi_label ?? body.multiLabel),
       allowNone: !!(body.allow_none ?? body.allowNone),
       jevKey,
+      escalateWith: request.headers.get('x-loopfour-key') ?? undefined, // optional cascade, see lib/escalate.ts
     });
     return Response.json({ ok: true, ...result, ...(truncated && { truncated: true }), total_ms: Math.round(performance.now() - t0) });
   } catch (err) {
