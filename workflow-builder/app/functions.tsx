@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { SAMPLE_CONTRACT, SAMPLE_LABELS, SAMPLE_SCHEMA, SAMPLE_TICKETS } from '@/lib/samples.ts';
-import { Badge, CopyBlock, Metric, pct } from './ui.tsx';
+import { Badge, CopyBlock, KeyHint, Metric, pct } from './ui.tsx';
 
 const SITE = 'https://l4-jev-workflow-builder.vercel.app';
 
@@ -112,7 +112,7 @@ export function ExtractPanel({ jevKey, apiKey }: { jevKey: string; apiKey: strin
         <button className="primary" disabled={!jevKey || !document || busy} onClick={run}>
           {busy ? 'Jev is extracting…' : 'Extract'}
         </button>
-        {!jevKey && <p className="hint">Enter your Jev API key in the API keys box.</p>}
+        {!jevKey && <KeyHint which="jev" />}
         {error && <p className="error">{error}</p>}
       </section>
 
@@ -202,7 +202,7 @@ export function ClassifyPanel({ jevKey, apiKey }: { jevKey: string; apiKey: stri
         <button className="primary" disabled={!jevKey || !document || busy} onClick={run}>
           {busy ? 'Jev is classifying…' : 'Classify'}
         </button>
-        {!jevKey && <p className="hint">Enter your Jev API key in the API keys box.</p>}
+        {!jevKey && <KeyHint which="jev" />}
         {error && <p className="error">{error}</p>}
       </section>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { KeyHint } from './ui.tsx';
 
 type Template = {
   slug: string;
@@ -50,7 +51,7 @@ export function TemplatesPanel({ apiKey, onBuild }: { apiKey: string; onBuild: (
             {busy ? 'Loading…' : 'Load Loopfour templates'}
           </button>
         )}
-        {!apiKey && <p className="hint">Enter your Loopfour API key in the API keys box.</p>}
+        {!apiKey && <KeyHint which="loopfour" />}
         {error && <p className="error">{error}</p>}
         {templates && (
           <div className="checks">

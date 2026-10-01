@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { assemble, type Answers, type Question } from '@/lib/assemble.ts';
 import type { Connection } from '@/lib/loopfour.ts';
 import type { Draft, Force } from '@/lib/planner.ts';
-import { Badge, Fields, Metric, QuestionRow } from './ui.tsx';
+import { Badge, Fields, KeyHint, Metric, QuestionRow } from './ui.tsx';
 
 type PlanResponse = {
   draft: Draft;
@@ -109,7 +109,7 @@ export function Builder({ apiKey, jevKey, seed }: { apiKey: string; jevKey: stri
   const usage = plan?.draft.usage;
   const open = assembled?.questions.filter((q) => q.kind !== 'info') ?? [];
   const notes = assembled?.questions.filter((q) => q.kind === 'info') ?? [];
-  const missingKeys = !apiKey ? 'Enter your Loopfour API key in the API keys box.' : !jevKey ? 'Enter your Jev API key in the API keys box.' : null;
+  const missingKeys: 'loopfour' | 'jev' | null = !apiKey ? 'loopfour' : !jevKey ? 'jev' : null;
 
   return (
     <>
@@ -142,7 +142,7 @@ export function Builder({ apiKey, jevKey, seed }: { apiKey: string; jevKey: stri
         <button className="primary" disabled={!!missingKeys || !description || busy !== null} onClick={() => build()}>
           {busy === 'plan' ? 'Jev is mapping…' : 'Build workflow'}
         </button>
-        {missingKeys && <p className="hint">{missingKeys}</p>}
+        {missingKeys && <KeyHint which={missingKeys} />}
         {error && <p className="error">{error}</p>}
       </section>
 

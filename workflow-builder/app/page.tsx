@@ -76,7 +76,15 @@ export default function Home() {
         <p className="sub">
           Jev (TypeSafe&apos;s System One model) makes the decisions an LLM usually makes in a workflow, as typed choices with calibrated
           confidence. No LLM is called to build a workflow, extract a field or classify a document.{' '}
-          <a href="#why">Why it matters for Studio ↓</a>
+          <a
+              href="#why"
+              onClick={(e) => {
+                e.preventDefault();
+                goTo('why');
+              }}
+            >
+              Why it matters for Studio ↓
+            </a>
         </p>
       </header>
 
@@ -108,7 +116,7 @@ export default function Home() {
       </nav>
 
       <aside className="rail">
-        <section className="card">
+        <section className="card" id="keys">
           <div className="keys">
             <div>
               <label htmlFor="key">Loopfour API key</label>

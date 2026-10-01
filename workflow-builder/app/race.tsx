@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { assemble } from '@/lib/assemble.ts';
 import { SAMPLE_CONTRACT, SAMPLE_LABELS, SAMPLE_SCHEMA, SAMPLE_TICKETS } from '@/lib/samples.ts';
 import { JEV_EXAMPLES } from './examples.tsx';
+import { KeyHint } from './ui.tsx';
 
 type Kind = 'builder' | 'extract' | 'classify';
 type Lane = { start: number; end?: number; usd?: number | null; result?: Record<string, unknown>; error?: string };
@@ -101,7 +102,7 @@ export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }
     finish(setLlm, (r) => (r.usd as number | null) ?? null)(llmCall);
   }
 
-  const missing = !jevKey ? 'Enter your Jev API key in the API keys box.' : !apiKey ? 'Enter your Loopfour API key in the API keys box: the LLM side runs in your workspace.' : null;
+  const missing: 'loopfour' | 'jev' | null = !jevKey ? 'jev' : !apiKey ? 'loopfour' : null;
   const elapsed = (l: Lane | null) => (l ? (l.end ?? now) - l.start : 0);
   const scale = Math.max(3000, elapsed(jev), elapsed(llm));
   const done = jev?.end && llm?.end && !jev.error && !llm.error;
@@ -170,7 +171,7 @@ export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }
         <button className="primary" disabled={!!missing || !!running} onClick={race}>
           {running ? 'Racing…' : 'Start the race'}
         </button>
-        {missing && <p className="hint">{missing}</p>}
+        {missing && <KeyHint which={missing} why={missing === 'loopfour' ? 'the LLM side runs in your workspace.' : undefined} />}
         {error && <p className="error">{error}</p>}
       </section>
 

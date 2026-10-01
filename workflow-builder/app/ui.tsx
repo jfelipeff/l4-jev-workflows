@@ -120,3 +120,28 @@ export function GitHubIcon() {
     </svg>
   );
 }
+
+/** Scroll to the API keys card, light it up for a moment and put the cursor in the right field. */
+export function showKeys(which: 'loopfour' | 'jev') {
+  const card = document.getElementById('keys');
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.remove('glow');
+  void card.offsetWidth; // restart the animation
+  card.classList.add('glow');
+  setTimeout(() => card.classList.remove('glow'), 2600);
+  document.getElementById(which === 'jev' ? 'jev' : 'key')?.focus({ preventScroll: true });
+}
+
+/** "Enter your … API key in the API keys box", where "API keys box" lights up the box. */
+export function KeyHint({ which, why }: { which: 'loopfour' | 'jev'; why?: string }) {
+  return (
+    <p className="hint">
+      Enter your {which === 'jev' ? 'Jev' : 'Loopfour'} API key in the{' '}
+      <button className="keylink" onClick={() => showKeys(which)}>
+        API keys box
+      </button>
+      {why ? `: ${why}` : '.'}
+    </p>
+  );
+}
