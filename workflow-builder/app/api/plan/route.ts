@@ -7,6 +7,12 @@ import { buildCatalog } from '@/lib/catalog.ts';
 import { JevKeyError } from '@/lib/jev.ts';
 import { fetchCatalogRaw, fetchConnections, fetchTemplates, LoopfourError } from '@/lib/loopfour.ts';
 import { plan, type Force } from '@/lib/planner.ts';
+import { fillVariables } from '@/lib/templates.ts';
+import { JEV_PRICE_PER_TOKEN } from '@/lib/jev.ts';
+
+// A template replaces the step-by-step build only when Jev is sure on both checks.
+const TEMPLATE_FIT = 0.7;
+const TEMPLATE_CHOICE = 0.5;
 
 export const maxDuration = 30;
 
@@ -29,6 +35,19 @@ export async function POST(request: Request) {
     const catalog = buildCatalog(raw as Parameters<typeof buildCatalog>[0]);
     const siteUrl = new URL(request.url).origin.replace('http://localhost', 'https://l4-jev-workflow-builder.vercel.app').replace(/:\d+$/, '');
     const draft = await plan(description.trim(), catalog, { force, jevKey, templates, siteUrl });
+    // Recognized one of Loopfour's templates: recreate it exactly and fill its variables (one more Jev request).
+    const def = draft.template && draft.template.fit >= TEMPLATE_FIT && draft.template.confidence >= TEMPLATE_CHOICE ? templates.find((t) => t.slug === draft.template!.slug) : undefined;
+    if (def) {
+      const filled = await fillVariables(description.trim(), def, jevKey);
+      draft.templateMode = { def, values: filled.values };
+      if (filled.questions) {
+        draft.usage.rounds++;
+        draft.usage.questions += filled.questions;
+        draft.usage.jevMs += filled.ms;
+        draft.usage.inputTokens += filled.inputTokens;
+        draft.usage.usd = draft.usage.inputTokens * JEV_PRICE_PER_TOKEN;
+      }
+    }
     const assembled = assemble(draft, connections);
     return Response.json({
       draft,

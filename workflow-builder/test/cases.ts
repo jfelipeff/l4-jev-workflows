@@ -6,6 +6,7 @@ export type Expect = {
   steps?: StepExpect[]; // exactly these steps, in order
   stepsInclude?: StepExpect[]; // at least these steps, in this order (others may sit between)
   questions?: string[]; // question ids that must be asked
+  template?: string | null; // the Loopfour template it must be recreated from (null: must not use a template)
 };
 export const CASES: { description: string; expect: Expect }[] = [
   {
@@ -67,42 +68,22 @@ export const CASES: { description: string; expect: Expect }[] = [
   {
     // Loopfour template "billing-exceptions": one clause that needs a fetch AND an analysis.
     description: 'Scan Stripe events daily for duplicate charges, pricing mismatches, failed renewals and unexpected plan changes.',
-    expect: {
-      trigger: { type: 'schedule', cron: '0 9 * * *' },
-      stepsInclude: [
-        { type: 'action', action: ['stripe.listInvoices', 'stripe.listPaymentIntents', 'stripe.listSubscriptions', 'stripe.listBalanceTransactions'] },
-        { type: 'agent' },
-      ],
-      questions: ['__notify__'],
-    },
+    expect: { trigger: { type: 'schedule' }, template: 'billing-exceptions' }
   },
   {
     // Loopfour template "invoice-aging-analysis"
     description: 'Pull open invoices from NetSuite, group by aging bucket and ship a weekly summary to the controller in Slack.',
-    expect: {
-      trigger: { type: 'schedule' },
-      stepsInclude: [{ type: 'action', action: ['netsuite.searchRecords', 'netsuite.getRecord'] }, { type: 'agent' }, { type: 'action', action: 'slack.sendMessage' }],
-    },
+    expect: { trigger: { type: 'schedule' }, template: 'invoice-aging-analysis' }
   },
   {
     // Loopfour template "subscription-mrr-tracking"
     description: 'Pull subscription events from Stripe, classify MRR changes and push the trend to Google Sheets monthly.',
-    expect: {
-      trigger: { type: 'schedule' },
-      stepsInclude: [
-        { type: 'action', action: 'stripe.listSubscriptions' },
-        { type: 'agent' },
-        { type: 'action', action: ['google-sheets.appendValues', 'google-sheets.updateValues', 'google-sheets.insertRow', 'google-sheets.upsertRow'] },
-      ],
-    },
+    expect: { trigger: { type: 'schedule' }, template: 'subscription-mrr-tracking' }
   },
   {
     // Loopfour template "dso-monitor"
     description: 'Pull aging by customer segment from NetSuite weekly and escalate at-risk accounts to the right owners.',
-    expect: {
-      trigger: { type: 'schedule' },
-      stepsInclude: [{ type: 'action', action: ['netsuite.searchRecords', 'netsuite.getRecord'] }, { type: 'agent' }],
-    },
+    expect: { trigger: { type: 'schedule' }, template: 'dso-monitor' }
   },
   {
     // Extraction goes to Jev (API Request to /api/extract), not to an AI Agent.
@@ -130,5 +111,11 @@ export const CASES: { description: string; expect: Expect }[] = [
         { type: 'action', action: ['google-sheets.appendValues', 'google-sheets.insertRow', 'google-sheets.upsertRow', 'google-sheets.updateValues'] },
       ],
     },
+  },
+  {
+    // The "Cash application" recipe card from Studio, pasted as one line: must give that exact template.
+    description:
+      'When a payment lands in Stripe (all charges over $50, webhook event), find the matching open invoice in NetSuite by amount + customer reference (confidence threshold 95%, search window last 90 days). If matched, post the cash application to NetSuite accounting and close the invoice (debit 1010 Operating Bank — JPMC, credit 1200 Accounts Receivable, payment record, apply to matched invoice). If ambiguous, notify the AR owner in Slack with the top 3 candidate invoices (channel #finance-collections, @-mention @taylor).',
+    expect: { trigger: { type: 'schedule' }, template: 'cash-application' },
   },
 ];

@@ -9,6 +9,7 @@ import type { Connection } from './loopfour.ts';
 import { numeric } from './parse.ts';
 import { OK } from './constants.ts';
 import type { Alt, Draft, StepDraft } from './planner.ts';
+import { instantiate, templateCanvas, usedVariables } from './templates.ts';
 
 export type Answers = Record<string, string>; // question id -> value chosen/typed by the user
 
@@ -18,6 +19,7 @@ export type Question = {
   kind: 'choose' | 'input' | 'info';
   prompt: string;
   options?: Alt[];
+  allOptions?: Alt[]; // the complete list (e.g. every action of the app), shown on demand
   replan?: boolean; // answering needs a new Jev round (different app/action), not just reassembly
   forceKey?: string; // which Force entry a replan answer sets
 };
@@ -38,6 +40,7 @@ export type Assembled = {
   questions: Question[];
   view: { trigger: { title: string; detail: string; confidence: number }; steps: StepView[] };
   ready: boolean; // no blocking question left
+  template?: { slug: string; name: string; fit: number }; // set when the workflow is an exact Loopfour template
 };
 
 const COL = 360;
@@ -46,7 +49,11 @@ const ROW = { main: 220, then: 100, else: 360 };
 const TRIGGERS: Record<string, string> = { api_trigger: 'api', schedule_trigger: 'schedule' };
 
 export function assemble(draft: Draft, connections: Connection[], answers: Answers = {}): Assembled {
+  if (draft.templateMode && answers.__scratch !== '1') return assembleTemplate(draft, connections, answers);
   const questions: Question[] = [];
+  if (draft.templateMode) {
+    questions.push({ id: 'template_back', stepId: null, kind: 'choose', prompt: `Use the "${draft.templateMode.def.name}" template instead?`, options: [{ id: '0', label: 'Use the template', p: 0 }] });
+  }
   const t = draft.trigger;
 
   // ---------------------------------------------------------------- trigger
@@ -87,7 +94,7 @@ export function assemble(draft: Draft, connections: Connection[], answers: Answe
       forceKey: '__notify__',
     });
   }
-  if (draft.template && draft.template.fit >= 0.6) {
+  if (draft.template && draft.template.fit >= 0.6 && !draft.templateMode) {
     questions.push({
       id: 'template_info',
       stepId: null,
@@ -191,6 +198,65 @@ export function assemble(draft: Draft, connections: Connection[], answers: Answe
   };
 }
 
+/** The exact Loopfour template Jev recognized, with its variables filled from the description. */
+function assembleTemplate(draft: Draft, connections: Connection[], answers: Answers): Assembled {
+  const { def, values } = draft.templateMode!;
+  const questions: Question[] = [
+    {
+      id: '__scratch',
+      stepId: null,
+      kind: 'choose',
+      prompt: `Jev matched your description to Loopfour's "${def.name}" template and recreated it exactly. Prefer a workflow built step by step from your own words?`,
+      options: [{ id: '1', label: 'Build from my description instead', p: 0 }],
+    },
+  ];
+  const filled: Record<string, string | null> = {};
+  for (const v of usedVariables(def)) {
+    const value = answers[`var.${v.name}`] ?? (values[v.name]?.value && (values[v.name].confidence ?? 0) >= OK ? values[v.name].value : null);
+    filled[v.name] = value;
+    if (!value) questions.push({ id: `var.${v.name}`, stepId: null, kind: 'input', prompt: `${v.label} (the template needs it and your description doesn't say it). Type it below, or leave it and fill it in Studio.` });
+  }
+  for (const provider of def.requiredConnections) {
+    const p = provider === 'sheets' ? 'google-sheets' : provider;
+    const active = connections.some((c) => c.provider === p && c.status === 'active');
+    if (!active) {
+      const pending = connections.find((c) => c.provider === p);
+      questions.push({
+        id: `connection_${p}`,
+        stepId: null,
+        kind: 'info',
+        prompt: pending ? `Your ${p} connection is ${pending.status}. Finish connecting it in Studio before running.` : `No ${p} connection in this workspace. Connect ${p} in Studio before running.`,
+      });
+    }
+  }
+  const { trigger, steps } = instantiate(def, filled);
+  const kindOf = (s: Record<string, unknown>) => (s.type === 'action' ? 'integration' : String(s.type));
+  const t = trigger as Record<string, unknown>;
+  return {
+    workflow: { name: def.name, description: `${def.description} (Loopfour template "${def.slug}", recreated by the Jev workflow builder from: "${draft.description}")`, trigger, steps },
+    canvasState: templateCanvas(trigger, steps),
+    questions,
+    view: {
+      trigger: {
+        title: t.type === 'schedule' ? 'Schedule' : t.type === 'webhook' ? 'Webhook' : 'API trigger',
+        detail: t.type === 'schedule' ? `${t.cron} (${t.timezone ?? 'UTC'})` : t.type === 'webhook' ? String(t.path ?? t.provider ?? '') : 'started on demand',
+        confidence: draft.template?.confidence ?? 1,
+      },
+      steps: steps.map((s) => ({
+        id: String(s.id),
+        title: String(s.name),
+        detail: String(s.action ?? s.type),
+        kind: kindOf(s),
+        branch: null,
+        confidence: null,
+        config: (s.config ?? {}) as Record<string, unknown>,
+      })),
+    },
+    ready: !questions.some((q) => q.kind === 'input'),
+    template: { slug: def.slug, name: def.name, fit: draft.template?.fit ?? 0 },
+  };
+}
+
 function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answers: Answers, questions: Question[]) {
   const config: Record<string, unknown> = {};
   const subBlocks: Record<string, unknown> = {};
@@ -221,7 +287,9 @@ function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answer
         stepId: s.id,
         kind: 'choose',
         prompt: def ? `Which ${s.block?.name} action is "${s.clause}"?` : `Jev found no ${s.block?.name ?? ''} action for "${s.clause}". Use another block, or remove it:`,
-        options: def ? s.action?.alternatives : [...(s.block?.alternatives ?? []).filter((a) => a.id !== blockType), removeOption],
+        // Jev's likely picks first; when it is unsure, every action of the app is one click away.
+        options: def ? (s.action?.alternatives ?? []).filter((o) => o.p >= MIN_GUESS) : [...(s.block?.alternatives ?? []).filter((a) => a.id !== blockType), removeOption],
+        allOptions: s.actionOptions,
         replan: true,
         forceKey: s.forceKey,
       });
@@ -229,7 +297,10 @@ function buildStep(s: StepDraft, draft: Draft, connections: Connection[], answer
     if (def?.opField) set(def.opField, def.op, 'dropdown');
     const conn = pickConnection(blockType, connections);
     if (conn.id) set('connection', conn.id, 'connection-selector');
-    if (conn.question) questions.push({ ...conn.question, id: `${s.id}_connection`, stepId: s.id, options: conn.question.options });
+    // One connection note per app, not one per step.
+    if (conn.question && !questions.some((q) => q.id === `connection_${blockType}`)) {
+      questions.push({ ...conn.question, id: conn.question.kind === 'info' ? `connection_${blockType}` : `${s.id}_connection`, stepId: s.id, options: conn.question.options });
+    }
     if (answers[`${s.id}_connection`]) set('connection', answers[`${s.id}_connection`], 'connection-selector');
 
     for (const [id, f] of Object.entries(s.fields)) {

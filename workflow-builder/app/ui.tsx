@@ -40,6 +40,7 @@ export function Fields({ config }: { config: Record<string, unknown> }) {
 
 export function QuestionRow({ q, onAnswer, disabled }: { q: Question; onAnswer: (v: string) => void; disabled: boolean }) {
   const [text, setText] = useState('');
+  const [all, setAll] = useState(false);
   return (
     <div className="question">
       <p>{q.prompt}</p>
@@ -50,6 +51,24 @@ export function QuestionRow({ q, onAnswer, disabled }: { q: Question; onAnswer: 
               {o.label} {o.p > 0 && <small>{pct(o.p)}</small>}
             </button>
           ))}
+        </div>
+      ) : null}
+      {q.allOptions?.length ? (
+        <div className="alloptions">
+          <button className="link" onClick={() => setAll((v) => !v)}>
+            {all ? 'Hide' : 'Show'} all {q.allOptions.length} options
+          </button>
+          {all && (
+            <div className="options">
+              {[...q.allOptions]
+                .sort((a, b) => a.label.localeCompare(b.label))
+                .map((o) => (
+                  <button key={o.id} className="chip" disabled={disabled} onClick={() => onAnswer(o.id)}>
+                    {o.label}
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
       ) : null}
       {q.kind === 'input' && (

@@ -1,6 +1,8 @@
 // Loopfour Workflows API, called only from server routes. The user's key is passed per request and
 // never stored or logged (Loopfour's docs: keys must not be sent from the browser).
 
+import type { TemplateDef } from './templates.ts';
+
 const API = 'https://workflow.loopfour.ai/api/v1';
 export const STUDIO_URL = (id: string) => `https://studio.loopfour.ai/w/${id}`;
 
@@ -45,14 +47,29 @@ export async function fetchCatalogRaw(key: string) {
 
 export const fetchConnections = (key: string) => call<Connection[]>(key, 'GET', '/connections');
 
-/** Loopfour's system templates (name + description), used only to mention a matching template. */
-let templateCache: { at: number; list: { slug: string; name: string; description: string }[] } | null = null;
-export async function fetchTemplates(key: string) {
+/** Loopfour's system templates with their full definitions (trigger, steps, variables). Shared by every
+ * workspace and free of credentials, so one cached copy per server instance. */
+let templateCache: { at: number; list: TemplateDef[] } | null = null;
+export async function fetchTemplates(key: string): Promise<TemplateDef[]> {
   if (templateCache && Date.now() - templateCache.at < CATALOG_TTL_MS) return templateCache.list;
-  const rows = await call<{ slug: string | null; name: string; description: string | null }[]>(key, 'GET', '/templates?limit=100').catch(() => []);
-  const list = rows.filter((t) => t.slug).map((t) => ({ slug: t.slug!, name: t.name, description: t.description ?? '' }));
+  const rows = await call<{ slug: string | null }[]>(key, 'GET', '/templates?limit=100').catch(() => []);
+  const slugs = rows.map((t) => t.slug).filter((s): s is string => !!s);
+  const defs = await Promise.all(slugs.map((slug) => call<Record<string, unknown>>(key, 'GET', `/templates/by-slug/${slug}`).catch(() => null)));
+  const list = defs.filter((d): d is Record<string, unknown> => !!d).map(toTemplateDef);
   templateCache = { at: Date.now(), list };
   return list;
+}
+
+export function toTemplateDef(d: Record<string, unknown>): TemplateDef {
+  return {
+    slug: String(d.slug),
+    name: String(d.name),
+    description: String(d.description ?? ''),
+    trigger: (d.trigger ?? d.triggerConfig ?? { type: 'api' }) as Record<string, unknown>,
+    steps: (d.steps ?? []) as Record<string, unknown>[],
+    variables: ((d.variables ?? []) as TemplateDef['variables']).map((v) => ({ ...v, label: v.label ?? v.name, required: !!v.required })),
+    requiredConnections: (d.requiredConnections ?? []) as string[],
+  };
 }
 
 /** Create the workflow (draft), then save the canvas so it shows up as blocks in Studio. */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { assemble, type Answers, type Question } from '@/lib/assemble.ts';
 import type { Connection } from '@/lib/loopfour.ts';
 import type { Draft, Force } from '@/lib/planner.ts';
@@ -22,7 +22,7 @@ const EXAMPLES = [
 
 const KIND_LABEL: Record<string, string> = { integration: 'Action', agent: 'AI step (LLM at run time)', jev: 'Jev step (no LLM)' };
 
-export function Builder({ apiKey, jevKey }: { apiKey: string; jevKey: string }) {
+export function Builder({ apiKey, jevKey, seed }: { apiKey: string; jevKey: string; seed?: { text: string; n: number } }) {
   const [description, setDescription] = useState('');
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
@@ -35,7 +35,15 @@ export function Builder({ apiKey, jevKey }: { apiKey: string; jevKey: string }) 
 
   const assembled = useMemo(() => (plan ? assemble(plan.draft, plan.connections, answers) : null), [plan, answers]);
 
-  async function build(nextForce: Force = {}) {
+  // "Build with Jev" from the templates tab: fill the description and build right away.
+  useEffect(() => {
+    if (!seed) return;
+    setDescription(seed.text);
+    if (apiKey && jevKey) void build({}, seed.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed?.n]);
+
+  async function build(nextForce: Force = {}, text = description) {
     setBusy('plan');
     setError(null);
     setCreated(null);
@@ -44,7 +52,7 @@ export function Builder({ apiKey, jevKey }: { apiKey: string; jevKey: string }) 
       const res = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, jevKey, description, force: nextForce }),
+        body: JSON.stringify({ apiKey, jevKey, description: text, force: nextForce }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `Error ${res.status}`);
@@ -80,12 +88,16 @@ export function Builder({ apiKey, jevKey }: { apiKey: string; jevKey: string }) 
   }
 
   function answer(q: Question, value: string) {
+    if (q.id === '__scratch' || q.id === 'template_back') {
+      setAnswers((a) => ({ ...a, __scratch: q.id === '__scratch' ? '1' : '0' }));
+      return;
+    }
     if (q.replan && plan && q.forceKey) {
       const step = plan.draft.steps.find((s) => s.id === q.stepId);
       const entry =
         value === '__remove__'
           ? { remove: true }
-          : q.id.endsWith('_action') && step?.action?.def
+          : q.id.endsWith('_action') && step && (step.action?.def || q.allOptions?.some((o) => o.id === value))
             ? { action: `${step.blockType}.${value}` }
             : { block: value };
       void build({ ...force, [q.forceKey]: entry });
@@ -104,8 +116,10 @@ export function Builder({ apiKey, jevKey }: { apiKey: string; jevKey: string }) 
       <section className="card">
         <p className="lead">
           Describe a workflow in plain language. Jev maps every part of it to a Loopfour block, choosing only from your workspace&apos;s
-          live block catalog, and the builder creates it in Studio. Extraction and classification steps run on Jev; the AI Agent is
-          only used for open-ended work.
+          live block catalog, or recognizes one of Loopfour&apos;s templates and recreates it exactly. The workflow is then created in
+          Studio through the <a href="https://loopfour.ai/docs/api-reference/workflows" target="_blank" rel="noreferrer">Loopfour Workflows API</a>{' '}
+          (<code>POST /workflows</code> plus the canvas). Extraction and classification steps run on Jev; the AI Agent is only used for
+          open-ended work.
         </p>
         <label htmlFor="desc">What should the workflow do?</label>
         <textarea
@@ -144,6 +158,12 @@ export function Builder({ apiKey, jevKey }: { apiKey: string; jevKey: string }) 
 
           <section className="card">
             <h2>Workflow</h2>
+            {assembled.template && (
+              <p className="template-note">
+                Recreated from Loopfour&apos;s <strong>{assembled.template.name}</strong> template (<code>{assembled.template.slug}</code>), step
+                for step. Jev match: {Math.round(assembled.template.fit * 100)}%.
+              </p>
+            )}
             <ol className="flow">
               <li className="node trigger">
                 <span className="kind">Trigger</span>

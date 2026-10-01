@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Builder } from './builder.tsx';
 import { ClassifyPanel, ExtractPanel } from './functions.tsx';
 import { Articles, JustPaid, WhyJev } from './info.tsx';
+import { TemplatesPanel } from './templates.tsx';
 import { GitHubIcon } from './ui.tsx';
 
 const REPO_NAME = 'jfelipeff/l4-jev-workflows';
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'builder', label: 'Workflow builder' },
   { id: 'extract', label: 'Extraction' },
   { id: 'classify', label: 'Classification' },
+  { id: 'templates', label: 'Loopfour templates' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -20,6 +22,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [jevKey, setJevKey] = useState('');
   const [tab, setTab] = useState<Tab>('builder');
+  const [seed, setSeed] = useState<{ text: string; n: number } | undefined>();
 
   return (
     <main>
@@ -79,13 +82,23 @@ export default function Home() {
 
       {/* Panels stay mounted so switching tabs keeps their inputs and results. */}
       <div hidden={tab !== 'builder'}>
-        <Builder apiKey={apiKey} jevKey={jevKey} />
+        <Builder apiKey={apiKey} jevKey={jevKey} seed={seed} />
       </div>
       <div hidden={tab !== 'extract'}>
         <ExtractPanel jevKey={jevKey} apiKey={apiKey} />
       </div>
       <div hidden={tab !== 'classify'}>
         <ClassifyPanel jevKey={jevKey} apiKey={apiKey} />
+      </div>
+      <div hidden={tab !== 'templates'}>
+        <TemplatesPanel
+          apiKey={apiKey}
+          onBuild={(text) => {
+            setSeed((s) => ({ text, n: (s?.n ?? 0) + 1 }));
+            setTab('builder');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       </div>
 
       <WhyJev />

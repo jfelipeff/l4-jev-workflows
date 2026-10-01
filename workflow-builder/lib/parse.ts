@@ -22,7 +22,32 @@ function sentences(text: string): string[] {
     .filter(Boolean);
 }
 
+// Commas and "and"s inside parentheses ("(all charges over $50, webhook event)") are details of one step,
+// never clause breaks: they are masked while splitting and restored in the result.
+const MASK_COMMA = '\u0001';
+const MASK_AND = '\u0002';
+function maskParens(text: string): string {
+  let depth = 0;
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '(') depth++;
+    if (ch === ')') depth = Math.max(0, depth - 1);
+    if (depth > 0 && ch === ',') out += MASK_COMMA;
+    else if (depth > 0 && text.startsWith(' and ', i)) {
+      out += ` ${MASK_AND} `;
+      i += 4;
+    } else out += ch;
+  }
+  return out;
+}
+const unmask = (t: string) => t.replaceAll(MASK_COMMA, ',').replaceAll(` ${MASK_AND} `, ' and ');
+
 export function splitClauses(description: string): Clause[] {
+  return splitMasked(maskParens(description)).map((c) => ({ ...c, text: unmask(c.text) }));
+}
+
+function splitMasked(description: string): Clause[] {
   const out: Clause[] = [];
   for (const sentence of sentences(description)) {
     // A branch lasts until the end of its sentence; "Otherwise ..." opens the else branch of the previous one.
@@ -34,12 +59,20 @@ export function splitClauses(description: string): Clause[] {
     }
     // "If X, do Y" / "When X, do Y": the head becomes its own clause.
     // Leading heads, possibly several: "When a payment comes in, if the amount is over $5,000, ..."
+    let carry = '';
     for (let comma = rest.search(/,\s/); CONDITION_START.test(rest) && comma > 0; comma = rest.search(/,\s/)) {
       const head = rest.slice(0, comma).trim(); // "$50,000" is not a clause break: only ", " is
-      out.push({ text: head, branch: sentenceBranch, softSplit: false });
       rest = rest.slice(comma + 1).trim();
+      // "If matched," / "If ambiguous," states the outcome of an earlier step, not a testable rule:
+      // keep it as context of the next clause instead of making it a step of its own.
+      if (/^(?:if|when|unless|once)\s+(?:it\s+is\s+|it's\s+|they\s+are\s+|not\s+)?[a-z-]+$/i.test(head)) {
+        carry = `${head}: `; // a colon, so the clause splitter below does not cut it off again
+        continue;
+      }
+      out.push({ text: head, branch: sentenceBranch, softSplit: false });
       if (/^(?:if|unless|only if)\b/i.test(head)) sentenceBranch = 'then';
     }
+    if (carry) rest = carry + rest;
     for (const hard of rest.split(HARD_JOIN).filter(Boolean)) {
       // "..., otherwise ..." inside a sentence
       const [main, ...elseParts] = hard.split(/\s*,?\s*\b(?:otherwise|or else|else)\b\s*,?\s*/i);

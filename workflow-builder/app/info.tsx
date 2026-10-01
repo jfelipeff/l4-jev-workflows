@@ -44,7 +44,8 @@ export function WhyJev() {
           <strong>Workflow builder</strong>
           <p>
             Plain language to a Studio workflow: every part of the description is classified against what each block does, using
-            your workspace&apos;s live block catalog, so actions and fields are never invented.
+            your workspace&apos;s live block catalog, so actions and fields are never invented; descriptions of Loopfour&apos;s own
+            templates are recreated exactly. Workflows are created through the Loopfour Workflows API.
           </p>
         </div>
         <div className="tile">

@@ -140,3 +140,14 @@ th { color: var(--muted); font-weight: 600; }
 @media (max-width: 640px) {
   .keys { grid-template-columns: 1fr; }
 }
+
+/* --- templates ----------------------------------------------------------- */
+.templates { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.template { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; align-content: start; }
+.template p { margin: 0; color: #cfd2d6; font-size: 13.5px; }
+.template ol { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text); }
+.template-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.template .secondary { justify-self: start; }
+.template-note { background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; padding: 8px 12px; margin: 0 0 12px; font-size: 13.5px; }
+.alloptions { margin: 4px 0 8px; }
+.alloptions .link { margin: 0 0 8px; }

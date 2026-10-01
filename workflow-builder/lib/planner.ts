@@ -38,6 +38,7 @@ export type StepDraft = {
   kindConfidence: number; // how sure Jev is that this part of the clause needs this block
   block?: Pick & { name?: string };
   action?: Pick & { label?: string; def?: Action };
+  actionOptions?: Alt[]; // every action of the app, sent along when Jev is unsure which one
   fields: Record<string, Pick & { field: Field }>;
   condition?: { left: Pick; operator: Pick; right: Pick };
   prompt?: string; // AI Agent / Jev step: the user's own words for this part, copied
@@ -53,7 +54,7 @@ export type TriggerDraft = {
   scheduleConfidence?: number;
   eventClause?: string; // the clause that describes the start, when it is not a step
 };
-export type Template = { slug: string; name: string; description: string; steps?: { name?: string }[] };
+export type Template = { slug: string; name: string; description: string; steps?: { name?: unknown }[]; trigger?: Record<string, unknown> };
 export type Draft = {
   description: string;
   siteUrl: string; // where /api/extract and /api/classify live (this website)
@@ -61,7 +62,8 @@ export type Draft = {
   steps: StepDraft[];
   blockNames: Record<string, string>;
   notify: { implied: number; covered: boolean; options: Alt[] }; // "send the results somewhere?"
-  template: { slug: string; name: string; fit: number } | null;
+  template: { slug: string; name: string; fit: number; confidence: number } | null;
+  templateMode?: { def: import('./templates.ts').TemplateDef; values: Record<string, import('./templates.ts').VariableValue> }; // set by the route when a template fits
   usage: { rounds: number; questions: number; jevMs: number; inputTokens: number; usd: number; model: string };
 };
 /**
@@ -136,6 +138,8 @@ const CUES: Record<string, RegExp> = {
   approval: /approv|sign[ -]?off|authori[sz]|review and confirm/i,
   wait: /\b(?:wait|delay|pause|later|after)\b.*\d|\d.*\b(?:later|after)\b/i,
   api: /https?:\/\/|\bapi\b|webhook|endpoint/i,
+  analysis: /\b(?:detect|analy[sz]|summar|identif|match|flag|scan|spot|check|review|assess|score|forecast|compare|reconcil|anomal|duplicate|mismatch|at-risk|risk|explain|recommend|group|bucket|classif|categori|judge|evaluate|predict|estimate|decide|prioriti)/i,
+  rule: /^(?:if|unless|only if|only when)\b.*(?:>|<|=|over|under|above|below|more than|less than|at least|at most|exceed|equal|\$|\d)/i,
   'jev-extract': /\b(?:extract|pull out|capture|parse|pick out|read (?:the|off)|fields?)\b/i,
   'jev-classify': /\b(?:classif|categori[sz]|label|tag|sort|route|triage|bucket)/i,
 };
@@ -147,7 +151,9 @@ const CUES: Record<string, RegExp> = {
  */
 function selected(type: string, name: string, p: number, clause: string): boolean {
   if (JEV_BLOCKS[type]) return p >= USES && CUES[type].test(clause) && !CUES.condition.test(clause);
-  if (type === 'agent') return p >= USES && !CUES.condition.test(clause); // "if X > 5000" is a rule, not AI judgement
+  // AI judgement needs an analysis verb ("notify the AR owner with the top 3 candidates" is a message, not analysis);
+  // "if X > 5000" is a rule, not AI judgement.
+  if (type === 'agent') return p >= USES && CUES.analysis.test(clause) && !CUES.rule.test(clause);
   if (CUES[type]) return p >= 0.7 && CUES[type].test(clause);
   return p >= 0.85 && names(name, type).some((n) => clause.toLowerCase().includes(n));
 }
@@ -286,7 +292,15 @@ export async function plan(
       template: {
         type: 'choice',
         instructions: 'Which of these ready-made Loopfour workflow templates does the same job as `description`?',
-        criteria: { ...Object.fromEntries(templates.map((t) => [t.slug, `${t.name}: ${t.description}`])), [NONE]: 'none of these templates' },
+        criteria: {
+          ...Object.fromEntries(
+            templates.map((t) => [
+              t.slug,
+              { name: t.name, does: t.description, ...(t.steps?.length && { steps: t.steps.map((s) => String(s.name)) }), ...(t.trigger?.type ? { runs: t.trigger.type === 'schedule' ? `on a schedule (${t.trigger.cron})` : `on a ${t.trigger.type} event` } : {}) },
+            ]),
+          ),
+          [NONE]: 'none of these templates',
+        },
       },
     }),
   };
@@ -355,7 +369,10 @@ export async function plan(
       scored = scored.filter((b) => !analysis.includes(b) || b === keep);
     }
     scored = scored.slice(0, MAX_BLOCKS_PER_CLAUSE);
-    if (!scored.length || ((noul(a1, `only_trigger_${i}`) ?? 0) >= 0.5 && main?.choice === NONE)) {
+    // A leading "When a payment lands in Stripe" is the trigger event, not a Stripe step.
+    const eventHead = i === 0 && /^(?:when|whenever|each time|every time|once)\b/i.test(item.text) && (noul(a1, `only_trigger_${i}`) ?? 0) >= 0.3;
+    if (eventHead || !scored.length || ((noul(a1, `only_trigger_${i}`) ?? 0) >= 0.5 && main?.choice === NONE)) {
+      if (eventHead) trigger.eventClause = item.text;
       if (!scored.length) trigger.eventClause = trigger.eventClause ?? item.text;
       continue;
     }
@@ -481,7 +498,9 @@ export async function plan(
     r2.template_fits = {
       type: 'noul',
       instructions: {
-        question: 'Does this ready-made template do what `description` asks for, with the same kind of steps?',
+        question:
+          'Is `description` asking for the same finance process as this ready-made template (the same job on the same kind ' +
+          'of data and systems), even if it is worded differently or gives different details such as timing or channels?',
         template: { name: template.name, description: template.description, steps: (template.steps ?? []).map((s) => s.name) },
       },
     };
@@ -512,8 +531,10 @@ export async function plan(
           def: action,
         };
         if (s.forceKey !== '__notify__') s.role = roleOfAction(s.blockType, action.op);
+        if ((s.action.confidence ?? 0) < OK && block) s.actionOptions = block.actions.map((x) => ({ id: x.op, label: x.label, p: a?.probabilities?.[x.op] ?? 0 }));
       } else {
         s.action = { value: null, confidence: null };
+        if (block) s.actionOptions = block.actions.map((x) => ({ id: x.op, label: x.label, p: a?.probabilities?.[x.op] ?? 0 }));
       }
     }
     if (s.kind === 'condition') {
@@ -666,7 +687,7 @@ export async function plan(
         steps.some((s, n) => s.role === 'act' && steps.slice(0, n).some((p) => ANALYSIS.includes(p.kind))),
       options: NOTIFY_APPS.filter((t) => catalog.byType[t]).map((t) => ({ id: t, label: blockLabels[t], p: 0 })),
     },
-    template: template ? { slug: template.slug, name: template.name, fit: fits } : null,
+    template: template ? { slug: template.slug, name: template.name, fit: fits, confidence: topTemplate?.confidence ?? 0 } : null,
     usage,
   };
 }

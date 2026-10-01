@@ -9,13 +9,28 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { assemble } from '../lib/assemble.ts';
 import { buildCatalog } from '../lib/catalog.ts';
 import type { JevCache, JevCall } from '../lib/jev.ts';
+import { toTemplateDef } from '../lib/loopfour.ts';
 import { plan } from '../lib/planner.ts';
-import { CASES } from './cases.ts';
+import { fillVariables, instantiate } from '../lib/templates.ts';
+import { CASES as BASE, type Expect } from './cases.ts';
+
+
 
 const here = new URL('.', import.meta.url).pathname;
 const catalog = buildCatalog(JSON.parse(readFileSync(`${here}fixtures/catalog.json`, 'utf8')));
 const connections = JSON.parse(readFileSync(`${here}fixtures/connections.json`, 'utf8'));
-const templates = JSON.parse(readFileSync(`${here}fixtures/templates.json`, 'utf8'));
+const templates = JSON.parse(readFileSync(`${here}fixtures/templates-full.json`, 'utf8')).map(toTemplateDef);
+// Every Loopfour template, phrased two ways: its own description, and its steps in plain words (like a
+// recipe card). Each must be recreated as exactly that template, every time.
+const stepsSentence = (t: { steps: Record<string, unknown>[] }) => t.steps.map((s) => String(s.name)).join(', ') + '.';
+const CASES: { description: string; expect: Expect }[] = [
+  ...BASE.map((c) => ({ ...c, expect: { ...c.expect, template: c.expect.template ?? null } })),
+  ...templates.flatMap((t: { slug: string; description: string; steps: Record<string, unknown>[] }) => [
+    { description: t.description, expect: { trigger: {}, template: t.slug } },
+    { description: stepsSentence(t), expect: { trigger: {}, template: t.slug } },
+  ]),
+];
+
 const cachePath = `${here}fixtures/jev-cache.json`;
 const store: Record<string, JevCall> = existsSync(cachePath) ? JSON.parse(readFileSync(cachePath, 'utf8')) : {};
 const cache: JevCache = { get: (k) => store[k], set: (k, v) => void (store[k] = v) };
@@ -40,6 +55,9 @@ for (const [i, c] of CASES.entries()) {
   if (only && only !== i + 1) continue;
   const t0 = performance.now();
   const draft = await plan(c.description, catalog, { cache, templates });
+  // Same decision as the /api/plan route.
+  const def = draft.template && draft.template.fit >= 0.7 && draft.template.confidence >= 0.5 ? templates.find((t: { slug: string }) => t.slug === draft.template!.slug) : undefined;
+  if (def) draft.templateMode = { def, values: (await fillVariables(c.description, def, undefined)).values };
   const out = assemble(draft, connections);
   const ms = performance.now() - t0;
   totalMs += draft.usage.jevMs;
@@ -47,6 +65,16 @@ for (const [i, c] of CASES.entries()) {
 
   const errors: string[] = [];
   check(out.workflow.trigger, c.expect.trigger, 'trigger', errors);
+  if (c.expect.template !== undefined) {
+    const got = out.template?.slug ?? null;
+    if (got !== c.expect.template) errors.push(`template: got ${got} (choice ${draft.template?.slug} ${draft.template?.confidence?.toFixed(2)}, fit ${draft.template?.fit?.toFixed(2)}), want ${c.expect.template}`);
+    else if (got) {
+      // exactly the template's steps (same ids, types and actions, in order)
+      const want = instantiate(def!, {}).steps.map((x) => `${x.id}:${x.type}:${x.action ?? ''}`).join(' > ');
+      const have = out.workflow.steps.map((x) => `${x.id}:${x.type}:${x.action ?? ''}`).join(' > ');
+      if (want !== have) errors.push(`steps differ from the template:\n      want ${want}\n      got  ${have}`);
+    }
+  }
   const got = out.workflow.steps;
   const summary = got.map((s) => s.action ?? s.type).join(', ');
   if (c.expect.steps) {
@@ -66,7 +94,7 @@ for (const [i, c] of CASES.entries()) {
     if (!out.questions.some((q) => q.id === id)) errors.push(`question ${id} was not asked`);
   }
   // Every action and config key must exist in the catalog.
-  for (const s of out.workflow.steps) {
+  for (const s of out.template ? [] : out.workflow.steps) {
     if (s.type !== 'action' || s.action === 'api.request') continue; // agent/condition/approval/wait are core steps
     const [type] = String(s.action).split('.');
     const def = catalog.byType[type]?.actions.find((a) => a.id === s.action);
@@ -78,6 +106,10 @@ for (const [i, c] of CASES.entries()) {
 
   const ok = errors.length === 0;
   passed += ok ? 1 : 0;
+  if (ok && CASES.length > 20 && !only) {
+    console.log(`PASS ${i + 1}. ${c.description.slice(0, 110)}${out.template ? `  -> template ${out.template.slug}` : ''}`);
+    continue;
+  }
   console.log(`\n${ok ? 'PASS' : 'FAIL'} ${i + 1}. ${c.description}`);
   console.log(`  trigger: ${JSON.stringify(out.workflow.trigger)}`);
   for (const v of out.view.steps) {

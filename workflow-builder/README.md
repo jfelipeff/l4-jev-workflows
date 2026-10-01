@@ -50,6 +50,23 @@ confirms the quote states that value (≥ 70%); otherwise the field stays `revie
 Measured: 11 billing fields from an order form in 0.5–0.75 s for $0.0007; a support ticket classified in
 0.18–0.30 s for $0.000024.
 
+## Loopfour templates
+
+Studio ships 29 workflow templates. When a description is one of them, the builder recreates **that exact
+template** (trigger, steps, configuration) instead of assembling blocks, and fills its variables (Slack
+channel, approver email, threshold, sheet ID) from the description with Jev, the way Studio's Copilot
+instantiates templates. 19 of the 29 use actions that are not in the public block catalog
+(`netsuite.suiteql`, `netsuite.createJournalEntry`, Bill.com, Ramp, ...), so a block-by-block build could
+never reproduce them; Loopfour accepts and activates them when created through the Workflows API.
+
+Recognition is two Jev judgments in the requests the builder already makes: a Choice over all 29
+templates (name, description, step names, trigger) and a yes/no "same finance process?" check on the
+winner; a template is used only when the Choice is ≥ 50% and the check ≥ 70%. `npm test` runs every
+template phrased two ways (its description, and only its step names) plus the "Cash application"
+recipe card pasted as one line: all 59 are recreated step for step, and none of the 11 ordinary
+descriptions is mistaken for a template (70/70). The site's **Loopfour templates** tab lists them with a
+"Build with Jev" button.
+
 ## Workflow builder
 
 A website that turns a plain-language description into a Loopfour Studio workflow in about a second,
