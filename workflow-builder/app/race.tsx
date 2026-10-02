@@ -32,7 +32,7 @@ async function call(path: string, body: unknown, headers: Record<string, string>
 }
 
 export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }) {
-  const [kind, setKind] = useState<Kind>('extract');
+  const [kind, setKind] = useState<Kind>('builder');
   const [description, setDescription] = useState(PROMPTS[1]);
   const [document, setDocument] = useState(SAMPLE_CONTRACT);
   const [schema, setSchema] = useState(SAMPLE_SCHEMA);
@@ -40,7 +40,7 @@ export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }
   const [labels, setLabels] = useState(SAMPLE_LABELS);
   const [jev, setJev] = useState<Lane | null>(null);
   const [llm, setLlm] = useState<Lane | null>(null);
-  const [raceKind, setRaceKind] = useState<Kind>('extract');
+  const [raceKind, setRaceKind] = useState<Kind>('builder');
   const [now, setNow] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
