@@ -3,7 +3,7 @@
 // Jev vs LLM, live: the same input goes to Jev (this site's normal endpoint) and to claude-opus-5 (an agent
 // in the visitor's Loopfour workspace) at the same moment, and both lanes are timed in the browser.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { assemble } from '@/lib/assemble.ts';
 import { SAMPLE_CONTRACT, SAMPLE_LABELS, SAMPLE_SCHEMA, SAMPLE_TICKETS } from '@/lib/samples.ts';
 import { JEV_EXAMPLES } from './examples.tsx';
@@ -50,6 +50,13 @@ export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }
     const t = setTimeout(() => void fetch('/api/warm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey }) }).catch(() => {}), 400);
     return () => clearTimeout(t);
   }, [apiKey]);
+
+  // When a race starts, bring the two lanes to the middle of the screen.
+  const lanesRef = useRef<HTMLElement>(null);
+  const raceStart = jev?.start;
+  useEffect(() => {
+    if (raceStart) lanesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [raceStart]);
 
   const running = (jev && !jev.end) || (llm && !llm.end);
   useEffect(() => {
@@ -176,7 +183,7 @@ export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }
       </section>
 
       {jev && llm && (
-        <section className="card">
+        <section className="card" ref={lanesRef}>
           <div className="race">
             {[
               { name: 'Jev', sub: 'TypeSafe System One', lane: jev, cls: 'jev' },
