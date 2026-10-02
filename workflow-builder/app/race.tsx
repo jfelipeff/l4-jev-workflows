@@ -51,11 +51,14 @@ export function RacePanel({ apiKey, jevKey }: { apiKey: string; jevKey: string }
     return () => clearTimeout(t);
   }, [apiKey]);
 
-  // When a race starts, bring the two lanes to the middle of the screen.
+  // When a race starts, bring the lanes near the top of the screen, leaving room below for the verdict,
+  // the answers and the create button that appear when it finishes.
   const lanesRef = useRef<HTMLElement>(null);
   const raceStart = jev?.start;
   useEffect(() => {
-    if (raceStart) lanesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const el = lanesRef.current;
+    if (!raceStart || !el) return;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 24, behavior: 'smooth' });
   }, [raceStart]);
 
   const running = (jev && !jev.end) || (llm && !llm.end);
